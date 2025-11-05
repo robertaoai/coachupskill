@@ -1,28 +1,28 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChatThread } from '@/components/ChatThread';
 import { AnswerForm } from '@/components/AnswerForm';
 import { useLocalSession } from '@/hooks/useLocalSession';
-import { postAnswer } from '@/lib/api';
+import { postAnswer, completeSession } from '@/lib/api';
 import { ChatMessage } from '@/lib/types';
-import { ArrowLeft, MessageSquare, Loader2 } from 'lucide-react';
+import { ArrowLeft, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { CyberButton } from '@/components/CyberButton';
 
-function AnswerContent() {
+export default function AnswerPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const sessionId = searchParams.get('id');
+  const sessionId = searchParams.get('id') || '';
   const { chatHistory, currentQuestionId, saveSession } = useLocalSession();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [questionId, setQuestionId] = useState('q1');
   const [error, setError] = useState<string | null>(null);
+  const [isAnswered, setIsAnswered] = useState(false);
 
   useEffect(() => {
     if (!sessionId) {
-      toast.error('No session ID provided');
       router.push('/');
       return;
     }
@@ -31,11 +31,9 @@ function AnswerContent() {
       setMessages(chatHistory);
       setQuestionId(currentQuestionId);
     }
-  }, [chatHistory, currentQuestionId, sessionId, router]);
+  }, [sessionId, chatHistory, currentQuestionId, router]);
 
   const handleSubmit = async (answer: string) => {
-    if (!sessionId) return;
-    
     setError(null);
     
     const userMessage: ChatMessage = {
@@ -49,7 +47,9 @@ function AnswerContent() {
     setMessages(updatedMessages);
 
     try {
+      console.log('Submitting answer for question:', questionId);
       const response = await postAnswer(sessionId, questionId, answer);
+      console.log('Answer response received:', response);
       
       const aiMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -64,15 +64,22 @@ function AnswerContent() {
       const finalMessages = [...updatedMessages, aiMessage];
       setMessages(finalMessages);
 
-      const nextQuestionId = `q${parseInt(questionId.substring(1)) + 1}`;
-      setQuestionId(nextQuestionId);
-      saveSession(sessionId, finalMessages, nextQuestionId);
+      // Check if session status is "answered"
+      if (response.session_status === 'answered') {
+        console.log('Session status is ANSWERED - enabling Complete Assessment button');
+        setIsAnswered(true);
+        toast.success('Ready to complete assessment!');
+      } else {
+        const nextQuestionId = `q${parseInt(questionId.substring(1)) + 1}`;
+        setQuestionId(nextQuestionId);
+        saveSession(sessionId, finalMessages, nextQuestionId);
 
-      if (parseInt(nextQuestionId.substring(1)) > 9) {
-        toast.success('Assessment complete! Proceeding to summary...');
-        setTimeout(() => {
-          router.push(`/complete?id=${sessionId}`);
-        }, 1500);
+        if (parseInt(nextQuestionId.substring(1)) > 9) {
+          toast.success('Assessment complete! Proceeding to summary...');
+          setTimeout(() => {
+            router.push(`/complete?id=${sessionId}`);
+          }, 1500);
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Failed to submit answer');
@@ -80,16 +87,34 @@ function AnswerContent() {
     }
   };
 
-  if (!sessionId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-16 h-16 text-[#00FFFF] animate-spin" />
-      </div>
-    );
-  }
+  const handleComplete = async () => {
+    setError(null);
+    
+    try {
+      console.log('Completing assessment for session:', sessionId);
+      toast.loading('Completing assessment...');
+      
+      const response = await completeSession(sessionId, true);
+      console.log('Complete response received:', response);
+      
+      toast.success('Assessment completed successfully!');
+      
+      // Navigate to complete page
+      setTimeout(() => {
+        router.push(`/complete?id=${sessionId}`);
+      }, 1000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to complete assessment');
+      toast.error('Failed to complete assessment. Please try again.');
+    }
+  };
 
   const currentQuestion = parseInt(questionId.substring(1));
   const isFinalQuestion = currentQuestion >= 9;
+
+  if (!sessionId) {
+    return null;
+  }
 
   return (
     <main className="h-screen flex flex-col p-4 max-w-4xl mx-auto">
@@ -111,7 +136,7 @@ function AnswerContent() {
             </h1>
           </div>
           <p className="text-sm text-gray-400 mt-1">
-            Question {currentQuestion} of 9
+            {isAnswered ? 'Ready to Complete' : `Question ${currentQuestion} of 9`}
           </p>
         </div>
         
@@ -128,20 +153,13 @@ function AnswerContent() {
             <p className="text-[#FF0080] text-sm">⚠ {error}</p>
           </div>
         )}
-        <AnswerForm onSubmit={handleSubmit} isFinalQuestion={isFinalQuestion} />
+        <AnswerForm 
+          onSubmit={handleSubmit} 
+          onComplete={handleComplete}
+          isFinalQuestion={isFinalQuestion}
+          isAnswered={isAnswered}
+        />
       </div>
     </main>
-  );
-}
-
-export default function AnswerPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-16 h-16 text-[#00FFFF] animate-spin" />
-      </div>
-    }>
-      <AnswerContent />
-    </Suspense>
   );
 }
