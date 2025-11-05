@@ -2,117 +2,123 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserEntryForm } from '@/components/UserEntryForm';
-import { ChatBubble } from '@/components/ChatBubble';
-import { postStartSession } from '@/lib/api';
+import { CyberButton } from '@/components/CyberButton';
+import { startSession } from '@/lib/api';
 import { useLocalSession } from '@/hooks/useLocalSession';
-import { Zap, Brain, Target } from 'lucide-react';
+import { Loader2, Sparkles, Zap, Target } from 'lucide-react';
 import { toast } from 'sonner';
 
-export default function Home() {
+export default function HomePage() {
   const router = useRouter();
   const { saveSession } = useLocalSession();
-  const [firstPrompt, setFirstPrompt] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (email: string, personaHint: string) => {
+  const handleStartAssessment = async () => {
+    setLoading(true);
     try {
-      console.log('=== HOME PAGE SUBMIT ===');
-      console.log('Email:', email);
-      console.log('Persona hint:', personaHint);
+      console.log('🎯 Starting new assessment...');
+      const response = await startSession();
       
-      console.log('Calling postStartSession...');
-      const result = await postStartSession(email, personaHint);
-      console.log('postStartSession result:', result);
-      
-      if (!result.session_id) {
-        console.error('❌ No session_id in result:', result);
-        throw new Error('No session ID received from server');
-      }
-      
-      if (!result.first_prompt) {
-        console.error('❌ No first_prompt in result:', result);
-        throw new Error('No first prompt received from server');
-      }
-      
-      console.log('✅ Session ID extracted:', result.session_id);
-      
-      const initialMessage = {
-        id: '1',
-        type: 'ai' as const,
-        text: result.first_prompt,
-        timestamp: new Date(),
-      };
-      
-      console.log('💾 Saving session to localStorage...');
-      saveSession(result.session_id, [initialMessage], 'q1');
-      console.log('✅ Session saved successfully');
-      
-      setFirstPrompt(result.first_prompt);
-      
-      toast.success('Session initialized successfully!');
-      
-      console.log('🔄 Navigating to answer page...');
-      setTimeout(() => {
-        router.push(`/answer?id=${result.session_id}`);
-      }, 1000);
-    } catch (err) {
-      console.error('=== HOME PAGE SUBMIT ERROR ===');
-      console.error('Error type:', err?.constructor?.name);
-      console.error('Error message:', err instanceof Error ? err.message : String(err));
-      console.error('Full error:', err);
-      throw err;
+      console.log('📦 Session response:', response);
+      console.log('🆔 Session ID:', response.session.id);
+      console.log('💬 First prompt:', response.first_prompt);
+
+      // Save session data to localStorage
+      saveSession(
+        response.session.id,
+        response.first_prompt,
+        []
+      );
+
+      toast.success('Assessment started!');
+      router.push('/assessment');
+    } catch (error: any) {
+      console.error('❌ Failed to start assessment:', error);
+      toast.error(error.message || 'Failed to start assessment');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen flex flex-col p-4 max-w-2xl mx-auto scan-line">
-      <header className="text-center py-8 mb-8">
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <Brain className="w-12 h-12 text-[#FF0080]" />
-          <h1 className="text-5xl font-['Orbitron'] font-black text-[#00FFFF] neon-glow-cyan glitch">
-            AI SKILLS COACH
+    <main className="min-h-screen bg-[#0A0A0A] flex items-center justify-center p-4">
+      <div className="max-w-2xl w-full">
+        {/* Hero Section */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 bg-[#1B1B1B] border-2 border-[#00FFFF] rounded-full px-6 py-2 mb-6 neon-border-cyan">
+            <Sparkles className="w-4 h-4 text-[#00FFFF]" />
+            <span className="text-sm font-['Exo_2'] text-[#00FFFF]">AI READINESS ASSESSMENT</span>
+          </div>
+          
+          <h1 className="text-5xl md:text-6xl font-['Orbitron'] font-black text-[#00FFFF] mb-4 neon-glow-cyan">
+            DISCOVER YOUR
+            <br />
+            AI POTENTIAL
           </h1>
-        </div>
-        <p className="text-gray-400 text-lg font-['Exo_2']">
-          Assess your AI readiness • Unlock your potential
-        </p>
-      </header>
-
-      <div className="flex-1 space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-[#1B1B1B] border-2 border-[#FF0080] rounded-lg p-4 text-center neon-border-pink">
-            <Zap className="w-8 h-8 text-[#FF0080] mx-auto mb-2" />
-            <h3 className="text-sm font-['Orbitron'] text-[#FF0080] uppercase">Fast</h3>
-            <p className="text-xs text-gray-400 mt-1">5-minute assessment</p>
-          </div>
-          <div className="bg-[#1B1B1B] border-2 border-[#00FFFF] rounded-lg p-4 text-center neon-border-cyan">
-            <Brain className="w-8 h-8 text-[#00FFFF] mx-auto mb-2" />
-            <h3 className="text-sm font-['Orbitron'] text-[#00FFFF] uppercase">Smart</h3>
-            <p className="text-xs text-gray-400 mt-1">AI-powered insights</p>
-          </div>
-          <div className="bg-[#1B1B1B] border-2 border-[#8AFF00] rounded-lg p-4 text-center neon-border-green">
-            <Target className="w-8 h-8 text-[#8AFF00] mx-auto mb-2" />
-            <h3 className="text-sm font-['Orbitron'] text-[#8AFF00] uppercase">Actionable</h3>
-            <p className="text-xs text-gray-400 mt-1">Clear next steps</p>
-          </div>
+          
+          <p className="text-xl text-gray-300 font-['Exo_2'] mb-8">
+            Take our interactive assessment to unlock personalized insights
+            and accelerate your AI transformation journey
+          </p>
         </div>
 
-        <div className="bg-[#1B1B1B] border-2 border-[#00FFFF] rounded-lg p-6 neon-border-cyan">
-          <UserEntryForm onSubmit={handleSubmit} />
+        {/* Features Grid */}
+        <div className="grid md:grid-cols-3 gap-4 mb-12">
+          <div className="bg-[#1B1B1B] border-2 border-[#00FFFF]/30 rounded-lg p-6 hover:border-[#00FFFF] transition-all neon-border-cyan-subtle">
+            <Zap className="w-8 h-8 text-[#00FFFF] mb-3" />
+            <h3 className="font-['Orbitron'] text-[#00FFFF] mb-2">9 Questions</h3>
+            <p className="text-sm text-gray-400 font-['Exo_2']">Quick assessment designed for busy professionals</p>
+          </div>
+          
+          <div className="bg-[#1B1B1B] border-2 border-[#8AFF00]/30 rounded-lg p-6 hover:border-[#8AFF00] transition-all neon-border-green-subtle">
+            <Target className="w-8 h-8 text-[#8AFF00] mb-3" />
+            <h3 className="font-['Orbitron'] text-[#8AFF00] mb-2">Personalized</h3>
+            <p className="text-sm text-gray-400 font-['Exo_2']">Tailored recommendations based on your responses</p>
+          </div>
+          
+          <div className="bg-[#1B1B1B] border-2 border-[#FF00FF]/30 rounded-lg p-6 hover:border-[#FF00FF] transition-all neon-border-magenta-subtle">
+            <Sparkles className="w-8 h-8 text-[#FF00FF] mb-3" />
+            <h3 className="font-['Orbitron'] text-[#FF00FF] mb-2">Instant Results</h3>
+            <p className="text-sm text-gray-400 font-['Exo_2']">Get your readiness score and ROI estimate immediately</p>
+          </div>
         </div>
 
-        {firstPrompt && (
-          <div className="mt-6">
-            <ChatBubble type="ai" message={firstPrompt} />
-          </div>
-        )}
+        {/* CTA Section */}
+        <div className="bg-[#1B1B1B] border-2 border-[#00FFFF] rounded-lg p-8 neon-border-cyan">
+          <h2 className="text-2xl font-['Orbitron'] text-[#00FFFF] mb-4 text-center">
+            Ready to Begin?
+          </h2>
+          <p className="text-gray-300 font-['Exo_2'] mb-6 text-center">
+            Start your assessment now and discover how AI can transform your business
+          </p>
+          
+          <CyberButton
+            onClick={handleStartAssessment}
+            disabled={loading}
+            className="w-full"
+            variant="primary"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Initializing...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-5 h-5" />
+                <span>Start Assessment</span>
+              </>
+            )}
+          </CyberButton>
+        </div>
+
+        {/* Trust Indicators */}
+        <div className="mt-8 text-center">
+          <p className="text-sm text-gray-500 font-['Exo_2']">
+            🔒 Your data is secure • ⚡ Takes less than 5 minutes • 🎯 100% personalized
+          </p>
+        </div>
       </div>
-
-      <footer className="text-center py-6 mt-8 border-t border-[#00FFFF]/20">
-        <p className="text-xs text-gray-500 font-['Exo_2']">
-          Powered by advanced AI • Secure & confidential
-        </p>
-      </footer>
     </main>
   );
 }

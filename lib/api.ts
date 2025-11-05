@@ -3,7 +3,21 @@ const API_BASE = 'https://robertcoach.app.n8n.cloud';
 export interface StartSessionResponse {
   session: {
     id: string;
+    user_id: string;
+    persona_hint: string;
+    started_at: string;
+    completed_at: string | null;
+    readiness_score: number | null;
+    urgency_level: string | null;
+    tone_score: number | null;
+    roi_estimate: string | null;
+    paid_annex: boolean;
+    brief_url: string | null;
+    pdf_url: string | null;
+    metadata: Record<string, any>;
+    current_state: string;
     created_at: string;
+    updated_at: string;
   };
   first_prompt: string;
 }
@@ -42,15 +56,12 @@ export async function startSession(): Promise<StartSessionResponse> {
     if (Array.isArray(data) && data.length > 0) {
       const sessionData = data[0];
       return {
-        session: {
-          id: sessionData.session.id,
-          created_at: sessionData.session.created_at
-        },
+        session: sessionData.session,
         first_prompt: sessionData.first_prompt
       };
     }
     
-    return data;
+    throw new Error('Invalid response format from start session endpoint');
   } catch (error) {
     console.error('💥 Start session error:', error);
     throw error;

@@ -1,25 +1,36 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChatMessage } from '@/lib/types';
 
 const SESSION_STORAGE_KEY = 'ai_coach_session';
 
+interface SessionData {
+  sessionId: string;
+  firstPrompt: string;
+  chatHistory: Array<{
+    id: string;
+    content: string;
+    isUser: boolean;
+    timestamp: Date;
+  }>;
+  savedAt: string;
+}
+
 export function useLocalSession() {
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-  const [currentQuestionId, setCurrentQuestionId] = useState<string>('q1');
+  const [firstPrompt, setFirstPrompt] = useState<string>('');
+  const [chatHistory, setChatHistory] = useState<SessionData['chatHistory']>([]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(SESSION_STORAGE_KEY);
       if (stored) {
         try {
-          const parsed = JSON.parse(stored);
+          const parsed: SessionData = JSON.parse(stored);
           console.log('📦 Loaded session from localStorage:', parsed);
           setSessionId(parsed.sessionId);
+          setFirstPrompt(parsed.firstPrompt);
           setChatHistory(parsed.chatHistory || []);
-          setCurrentQuestionId(parsed.currentQuestionId || 'q1');
         } catch (e) {
           console.error('❌ Failed to parse session from localStorage:', e);
         }
@@ -28,21 +39,25 @@ export function useLocalSession() {
   }, []);
 
   const saveSession = (
-    sid: string, 
-    history: ChatMessage[], 
-    qid: string
+    sid: string,
+    prompt: string,
+    history: SessionData['chatHistory']
   ) => {
-    console.log('💾 Saving session:', { sessionId: sid, historyLength: history.length, questionId: qid });
+    console.log('💾 Saving session:', { 
+      sessionId: sid, 
+      firstPrompt: prompt,
+      historyLength: history.length 
+    });
     
     setSessionId(sid);
+    setFirstPrompt(prompt);
     setChatHistory(history);
-    setCurrentQuestionId(qid);
     
     if (typeof window !== 'undefined') {
-      const sessionData = {
+      const sessionData: SessionData = {
         sessionId: sid,
+        firstPrompt: prompt,
         chatHistory: history,
-        currentQuestionId: qid,
         savedAt: new Date().toISOString(),
       };
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
@@ -54,8 +69,8 @@ export function useLocalSession() {
     console.log('🗑️ Clearing session...');
     
     setSessionId(null);
+    setFirstPrompt('');
     setChatHistory([]);
-    setCurrentQuestionId('q1');
     
     if (typeof window !== 'undefined') {
       localStorage.removeItem(SESSION_STORAGE_KEY);
@@ -65,8 +80,8 @@ export function useLocalSession() {
 
   return {
     sessionId,
+    firstPrompt,
     chatHistory,
-    currentQuestionId,
     saveSession,
     clearSession,
   };
