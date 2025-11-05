@@ -15,7 +15,7 @@ export interface SessionData {
   createdAt: Date;
 }
 
-export interface StartSessionResponse {
+export interface StartResponse {
   session_id: string;
   first_prompt: string;
   first_question: string;
@@ -29,7 +29,7 @@ export interface AnswerResponse {
   explainability?: string;
 }
 
-export interface CompletionResponse {
+export interface CompleteResponse {
   html_summary: string;
   readiness_score: number;
   roi_metrics: {

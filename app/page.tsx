@@ -17,8 +17,16 @@ export default function Home() {
 
   const handleSubmit = async (email: string, personaHint: string) => {
     setIsLoading(true);
+    console.log('handleSubmit called with:', { email, personaHint });
+    
     try {
+      console.log('Calling postStartSession...');
       const result = await postStartSession(email, personaHint);
+      console.log('postStartSession result:', result);
+      
+      if (!result.session_id || !result.first_prompt) {
+        throw new Error('Invalid response: missing session_id or first_prompt');
+      }
       
       const initialMessage = {
         id: '1',
@@ -27,15 +35,18 @@ export default function Home() {
         timestamp: new Date(),
       };
       
-      saveSession(result.session_id, [initialMessage], 'q1');
+      console.log('Saving session:', result.session_id);
+      saveSession(result.session_id, [initialMessage], result.first_question || 'q1');
       setFirstPrompt(result.first_prompt);
       
       toast.success('Session initialized successfully!');
       
+      console.log('Navigating to answer page...');
       setTimeout(() => {
-        router.push(`/answer/${result.session_id}`);
+        router.push(`/answer?id=${result.session_id}`);
       }, 1000);
     } catch (err) {
+      console.error('handleSubmit error:', err);
       setIsLoading(false);
       throw err;
     }
