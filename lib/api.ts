@@ -14,7 +14,7 @@ export interface StartSessionResponse {
     paid_annex: boolean;
     brief_url: string | null;
     pdf_url: string | null;
-    metadata: Record<string, any>;
+    metadata: Record<string, any> | null;
     current_state: string;
     created_at: string;
     updated_at: string;
@@ -54,21 +54,42 @@ export async function startSession(email: string, personaHint: string): Promise<
     }
 
     const data = await response.json();
-    console.log('✅ Session started:', data);
+    console.log('✅ Raw response data:', JSON.stringify(data, null, 2));
     
-    // Handle array response format
+    // Handle array response format - webhook returns array with single object
     if (Array.isArray(data) && data.length > 0) {
       const sessionData = data[0];
+      console.log('📦 Parsed session data:', sessionData);
+      
+      // Validate required fields
+      if (!sessionData.session || !sessionData.session.id) {
+        console.error('❌ Missing session.id in response:', sessionData);
+        throw new Error('Invalid response: missing session ID');
+      }
+      
+      if (!sessionData.first_prompt) {
+        console.error('❌ Missing first_prompt in response:', sessionData);
+        throw new Error('Invalid response: missing first prompt');
+      }
+      
+      console.log('✅ Session ID:', sessionData.session.id);
+      console.log('✅ First prompt:', sessionData.first_prompt);
+      
       return {
         session: sessionData.session,
         first_prompt: sessionData.first_prompt
       };
     }
     
-    throw new Error('Invalid response format from start session endpoint');
+    // If not an array, log the actual structure
+    console.error('❌ Unexpected response format:', data);
+    throw new Error('Invalid response format: expected array with session data');
   } catch (error) {
     console.error('💥 Start session error:', error);
-    throw error;
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Failed to start session');
   }
 }
 
@@ -130,7 +151,7 @@ export async function completeSession(
     const data = await response.json();
     console.log('✅ Session completed:', data);
     
-    // Handle array response format
+    // Handle array response format if needed
     if (Array.isArray(data) && data.length > 0) {
       const result = data[0];
       return {

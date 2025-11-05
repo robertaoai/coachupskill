@@ -56,6 +56,15 @@ export default function HomePage() {
       console.log('🆔 Session ID:', response.session.id);
       console.log('💬 First prompt:', response.first_prompt);
 
+      // Validate we have the required data
+      if (!response.session?.id) {
+        throw new Error('No session ID received from server');
+      }
+
+      if (!response.first_prompt) {
+        throw new Error('No first prompt received from server');
+      }
+
       // Save session data to localStorage
       saveSession(
         response.session.id,
@@ -63,11 +72,16 @@ export default function HomePage() {
         []
       );
 
-      toast.success('Assessment started!');
+      toast.success('Assessment started successfully!');
+      
+      // Navigate to assessment page
       router.push('/assessment');
     } catch (error: any) {
       console.error('❌ Failed to start assessment:', error);
-      toast.error(error.message || 'Failed to start assessment');
+      
+      // Show user-friendly error message
+      const errorMessage = error.message || 'Failed to start assessment. Please try again.';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
