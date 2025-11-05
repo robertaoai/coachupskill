@@ -16,9 +16,23 @@ export default function Home() {
 
   const handleSubmit = async (email: string, personaHint: string) => {
     try {
-      console.log('handleSubmit called with:', { email, personaHint });
+      console.log('=== HOME PAGE SUBMIT ===');
+      console.log('Email:', email);
+      console.log('Persona hint:', personaHint);
+      
+      console.log('Calling postStartSession...');
       const result = await postStartSession(email, personaHint);
       console.log('postStartSession result:', result);
+      
+      if (!result.session_id) {
+        console.error('No session_id in result:', result);
+        throw new Error('No session ID received from server');
+      }
+      
+      if (!result.first_prompt) {
+        console.error('No first_prompt in result:', result);
+        throw new Error('No first prompt received from server');
+      }
       
       const initialMessage = {
         id: '1',
@@ -27,16 +41,23 @@ export default function Home() {
         timestamp: new Date(),
       };
       
+      console.log('Saving session to localStorage...');
       saveSession(result.session_id, [initialMessage], 'q1');
+      console.log('Session saved successfully');
+      
       setFirstPrompt(result.first_prompt);
       
       toast.success('Session initialized successfully!');
       
+      console.log('Navigating to answer page...');
       setTimeout(() => {
         router.push(`/answer?id=${result.session_id}`);
       }, 1000);
     } catch (err) {
-      console.error('handleSubmit error:', err);
+      console.error('=== HOME PAGE SUBMIT ERROR ===');
+      console.error('Error type:', err?.constructor?.name);
+      console.error('Error message:', err instanceof Error ? err.message : String(err));
+      console.error('Full error:', err);
       throw err;
     }
   };

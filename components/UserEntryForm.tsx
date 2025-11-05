@@ -32,10 +32,15 @@ export function UserEntryForm({ onSubmit, disabled = false }: UserEntryFormProps
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('=== FORM SUBMIT ===');
+    console.log('Email:', email);
+    console.log('Persona hint:', personaHint);
+    
     const emailError = validateEmail(email);
     const personaError = validatePersonaHint(personaHint);
     
     if (emailError || personaError) {
+      console.log('Validation errors:', { emailError, personaError });
       setErrors({
         email: emailError,
         personaHint: personaError,
@@ -51,7 +56,10 @@ export function UserEntryForm({ onSubmit, disabled = false }: UserEntryFormProps
       await onSubmit(email, personaHint);
       console.log('Parent onSubmit completed successfully');
     } catch (error) {
-      console.error('Form submission error:', error);
+      console.error('=== FORM SUBMISSION ERROR ===');
+      console.error('Error type:', error?.constructor?.name);
+      console.error('Error message:', error instanceof Error ? error.message : String(error));
+      console.error('Full error:', error);
       
       if (error && typeof error === 'object' && 'validation' in error) {
         const validationError = error as { validation: string[] };
