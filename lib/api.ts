@@ -55,50 +55,40 @@ export async function startSession(email: string, personaHint: string): Promise<
 
     const data = await response.json();
     console.log('✅ Raw response received:', data);
-    console.log('✅ Response is array:', Array.isArray(data));
-    console.log('✅ Array length:', Array.isArray(data) ? data.length : 'N/A');
+    console.log('✅ Response type:', typeof data);
+    console.log('✅ Is array:', Array.isArray(data));
     
-    // Handle array response format - webhook returns array with single object
-    if (!Array.isArray(data)) {
-      console.error('❌ Response is not an array:', typeof data);
-      throw new Error('Invalid response format: expected array');
+    // Validate response is an object with required properties
+    if (typeof data !== 'object' || data === null) {
+      console.error('❌ Response is not an object:', typeof data);
+      throw new Error('Invalid response format: expected object');
     }
 
-    if (data.length === 0) {
-      console.error('❌ Response array is empty');
-      throw new Error('Invalid response format: empty array');
-    }
-
-    const sessionData = data[0];
-    console.log('📦 First array element:', sessionData);
-    console.log('📦 Has session property:', 'session' in sessionData);
-    console.log('📦 Has first_prompt property:', 'first_prompt' in sessionData);
-    
     // Validate session object exists
-    if (!sessionData.session) {
-      console.error('❌ Missing session object in response:', sessionData);
+    if (!data.session) {
+      console.error('❌ Missing session object in response:', data);
       throw new Error('Invalid response: missing session object');
     }
 
     // Validate session.id exists
-    if (!sessionData.session.id) {
-      console.error('❌ Missing session.id:', sessionData.session);
+    if (!data.session.id) {
+      console.error('❌ Missing session.id:', data.session);
       throw new Error('Invalid response: missing session ID');
     }
     
     // Validate first_prompt exists
-    if (!sessionData.first_prompt) {
-      console.error('❌ Missing first_prompt:', sessionData);
+    if (!data.first_prompt) {
+      console.error('❌ Missing first_prompt:', data);
       throw new Error('Invalid response: missing first prompt');
     }
     
-    console.log('✅ Session ID:', sessionData.session.id);
-    console.log('✅ First prompt:', sessionData.first_prompt);
+    console.log('✅ Session ID:', data.session.id);
+    console.log('✅ First prompt:', data.first_prompt);
     console.log('✅ Validation passed, returning data');
     
     return {
-      session: sessionData.session,
-      first_prompt: sessionData.first_prompt
+      session: data.session,
+      first_prompt: data.first_prompt
     };
   } catch (error) {
     console.error('💥 Start session error:', error);
