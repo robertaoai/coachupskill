@@ -34,10 +34,14 @@ function CompleteContent() {
     setError(null);
 
     try {
+      console.log('Starting complete session with optIn:', optIn);
       const result = await completeSession(sessionId, optIn);
+      console.log('Complete session result:', result);
+      
       setSummary(result);
       toast.success('Assessment completed successfully!');
     } catch (err: any) {
+      console.error('Complete session error:', err);
       setError(err.message || 'Failed to complete assessment');
       toast.error('Failed to complete assessment. Please try again.');
     } finally {
@@ -116,14 +120,14 @@ function CompleteContent() {
           <div className="space-y-8">
             <SummaryCard
               readiness_score={summary.readiness_score}
-              roi_metrics={summary.roi_metrics}
+              roi_estimate={summary.roi_estimate}
             />
             
             <div className="bg-[#1B1B1B] border-2 border-[#00FFFF] rounded-lg p-6 neon-border-cyan">
               <h2 className="text-2xl font-['Orbitron'] font-bold text-[#00FFFF] mb-6">
                 Detailed Summary
               </h2>
-              <HtmlSummaryView html_summary={summary.html_summary} />
+              <HtmlSummaryView html_summary={summary.summary_html} />
             </div>
           </div>
         )}

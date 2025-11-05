@@ -16,13 +16,15 @@ export interface SessionState {
 }
 
 export interface CompleteResponse {
+  status: string;
+  message: string;
   readiness_score: number;
-  roi_metrics: {
-    time_saved_hours: number;
-    cost_reduction_percent: number;
-    productivity_gain_percent: number;
+  roi_estimate: {
+    estimated_dollars: number;
+    annual_hours_saved: number;
+    team_efficiency_gain: string;
   };
-  html_summary: string;
+  summary_html: string;
 }
 
 export interface ChatMessage {

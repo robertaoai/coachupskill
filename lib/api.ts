@@ -20,13 +20,15 @@ export interface AnswerResponse {
 }
 
 export interface CompleteResponse {
-  html_summary: string;
+  status: string;
+  message: string;
   readiness_score: number;
-  roi_metrics: {
-    time_saved_hours: number;
-    productivity_gain_percent: number;
-    estimated_annual_value: number;
+  roi_estimate: {
+    estimated_dollars: number;
+    annual_hours_saved: number;
+    team_efficiency_gain: string;
   };
+  summary_html: string;
 }
 
 export async function postStartSession(email: string, persona_hint: string): Promise<StartResponse> {
@@ -240,7 +242,6 @@ export async function completeSession(
     console.log('Session ID:', sessionId);
     console.log('Opt-in:', optIn);
 
-    // CORRECT URL FORMAT: /webhook/session/complete
     const url = `${API_BASE}/webhook/session/complete`;
     console.log('Full complete URL:', url);
 
@@ -265,17 +266,46 @@ export async function completeSession(
     }
 
     const text = await res.text();
-    console.log('Complete response text:', text);
+    console.log('Complete response text (raw):', text);
+    
     const data = JSON.parse(text);
+    console.log('Complete response parsed:', data);
 
-    // Handle array response from N8N
+    // Handle array response from N8N - extract first element
     if (Array.isArray(data) && data.length > 0) {
       const firstItem = data[0];
       console.log('Complete response first item:', firstItem);
-      return firstItem?.json || firstItem;
+      
+      // Validate required fields
+      if (!firstItem.readiness_score || !firstItem.roi_estimate || !firstItem.summary_html) {
+        console.error('Missing required fields in response:', firstItem);
+        throw new Error('Invalid response structure - missing required fields');
+      }
+
+      const result: CompleteResponse = {
+        status: firstItem.status || 'success',
+        message: firstItem.message || 'Assessment complete',
+        readiness_score: firstItem.readiness_score,
+        roi_estimate: {
+          estimated_dollars: firstItem.roi_estimate.estimated_dollars,
+          annual_hours_saved: firstItem.roi_estimate.annual_hours_saved,
+          team_efficiency_gain: firstItem.roi_estimate.team_efficiency_gain,
+        },
+        summary_html: firstItem.summary_html,
+      };
+
+      console.log('Final complete response:', result);
+      return result;
     }
 
-    return data as CompleteResponse;
+    // Fallback for direct object response
+    if (data?.readiness_score && data?.roi_estimate && data?.summary_html) {
+      console.log('Direct object response format');
+      return data as CompleteResponse;
+    }
+
+    console.error('Unexpected complete response structure:', data);
+    throw new Error('Invalid response structure from complete endpoint');
 
   } catch (error) {
     console.error('=== COMPLETE SESSION ERROR ===');
