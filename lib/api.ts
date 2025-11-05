@@ -1,6 +1,7 @@
 import { ChatMessage } from './types';
 
 const API_BASE = 'https://robertcoach.app.n8n.cloud';
+const WEBHOOK_UUID = '6a535534-b0e8-48b5-9bbe-c5b72c35b895';
 
 export interface StartResponse {
   session_id: string;
@@ -9,6 +10,7 @@ export interface StartResponse {
 }
 
 export interface AnswerResponse {
+  reply_text: string;
   next_prompt?: string;
   next_question?: string;
   recommended_action?: string;
@@ -159,7 +161,11 @@ export async function postAnswer(
     console.log('Question ID:', questionId);
     console.log('Answer text:', answerText);
 
-    const res = await fetch(`${API_BASE}/webhook/session/${sessionId}/answer`, {
+    // CORRECT URL FORMAT: /webhook/{UUID}/session/{session_id}/answer
+    const url = `${API_BASE}/webhook/${WEBHOOK_UUID}/session/${sessionId}/answer`;
+    console.log('Full answer URL:', url);
+
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -186,7 +192,9 @@ export async function postAnswer(
 
     // Handle array response from N8N
     if (Array.isArray(data) && data.length > 0) {
-      return data[0]?.json || data[0];
+      const firstItem = data[0];
+      console.log('Answer response first item:', firstItem);
+      return firstItem?.json || firstItem;
     }
 
     return data as AnswerResponse;
@@ -207,7 +215,11 @@ export async function completeSession(
     console.log('Session ID:', sessionId);
     console.log('Opt-in:', optIn);
 
-    const res = await fetch(`${API_BASE}/webhook/session/complete`, {
+    // CORRECT URL FORMAT: /webhook/{UUID}/session/complete
+    const url = `${API_BASE}/webhook/${WEBHOOK_UUID}/session/complete`;
+    console.log('Full complete URL:', url);
+
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -233,7 +245,9 @@ export async function completeSession(
 
     // Handle array response from N8N
     if (Array.isArray(data) && data.length > 0) {
-      return data[0]?.json || data[0];
+      const firstItem = data[0];
+      console.log('Complete response first item:', firstItem);
+      return firstItem?.json || firstItem;
     }
 
     return data as CompleteResponse;
