@@ -1,294 +1,133 @@
-import { ChatMessage } from './types';
-
 const API_BASE = 'https://robertcoach.app.n8n.cloud';
-const WEBHOOK_UUID = '6a535534-b0e8-48b5-9bbe-c5b72c35b895';
 
-export interface StartResponse {
-  session_id: string;
+export interface StartSessionResponse {
+  session: {
+    id: string;
+    created_at: string;
+  };
   first_prompt: string;
-  first_question: string;
 }
 
 export interface AnswerResponse {
-  reply_text: string;
-  next_prompt?: string;
-  next_question?: string;
-  recommended_action?: string;
-  tags?: string[];
-  explainability?: string;
-  session_status?: 'answered' | 'in_progress';
+  next_prompt: string;
+  is_complete: boolean;
 }
 
 export interface CompleteResponse {
-  status: string;
-  message: string;
   readiness_score: number;
-  roi_estimate: {
-    estimated_dollars: number;
-    annual_hours_saved: number;
-    team_efficiency_gain: string;
-  };
+  roi_estimate: string;
   summary_html: string;
 }
 
-export async function postStartSession(email: string, persona_hint: string): Promise<StartResponse> {
+export async function startSession(): Promise<StartSessionResponse> {
   try {
-    console.log('=== START SESSION REQUEST ===');
-    console.log('API_BASE:', API_BASE);
-    console.log('Full URL:', `${API_BASE}/webhook/session/start`);
-    console.log('Request payload:', { email, persona_hint });
-    
-    const res = await fetch(`${API_BASE}/webhook/session/start`, {
+    console.log('🚀 Starting session...');
+    const response = await fetch(`${API_BASE}/webhook/session/start`, {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
       },
-      body: JSON.stringify({ 
-        email, 
-        persona_hint, 
-        metadata: { source: 'web' } 
-      }),
     });
 
-    console.log('Response status:', res.status);
-    console.log('Response ok:', res.ok);
-    console.log('Response headers:', Object.fromEntries(res.headers.entries()));
-
-    const text = await res.text();
-    console.log('Response text (raw):', text);
-
-    let data;
-    try {
-      data = JSON.parse(text);
-      console.log('Parsed JSON:', data);
-    } catch (e) {
-      console.error('JSON parse error:', e);
-      console.error('Failed to parse text:', text.substring(0, 500));
-      throw new Error(`Invalid JSON response: ${text.substring(0, 200)}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Start session failed:', response.status, errorText);
+      throw new Error(`Failed to start session: ${response.status}`);
     }
 
-    if (!res.ok) {
-      console.error('Request failed with status:', res.status);
-      console.error('Error data:', data);
-      throw new Error(`Request failed with status ${res.status}: ${JSON.stringify(data)}`);
-    }
-
-    // Handle N8N array response with nested session object
-    // Expected format: [{ session: { id: "...", ... }, first_prompt: "..." }]
-    if (Array.isArray(data)) {
-      console.log('Response is array, length:', data.length);
-      if (data.length > 0) {
-        const firstItem = data[0];
-        console.log('First item:', firstItem);
-        console.log('First item keys:', Object.keys(firstItem));
-        
-        // Check for error status in response
-        if (firstItem?.status === 'error') {
-          const errors = firstItem?.errors || ['Unknown error'];
-          console.error('Validation errors:', errors);
-          const err = new Error('Validation failed') as any;
-          err.validation = errors;
-          throw err;
-        }
-
-        // CRITICAL: Extract session.id from nested structure
-        if (firstItem?.session?.id && firstItem?.first_prompt) {
-          const sessionId = firstItem.session.id;
-          console.log('✅ Extracted session.id:', sessionId);
-          
-          const result = {
-            session_id: sessionId,
-            first_prompt: firstItem.first_prompt,
-            first_question: 'q1',
-          };
-          console.log('✅ Final result:', result);
-          return result;
-        }
-
-        console.error('❌ Missing session.id or first_prompt in response');
-        console.error('Session object:', firstItem?.session);
-        console.error('First prompt:', firstItem?.first_prompt);
-      }
-    }
-
-    console.error('❌ Unexpected response structure:', data);
-    console.error('Response type:', typeof data);
-    console.error('Response keys:', Object.keys(data || {}));
+    const data = await response.json();
+    console.log('✅ Session started:', data);
+    
+    // Handle array response format
     if (Array.isArray(data) && data.length > 0) {
-      console.error('First item keys:', Object.keys(data[0] || {}));
-      if (data[0]?.session) {
-        console.error('Session keys:', Object.keys(data[0].session || {}));
-      }
+      const sessionData = data[0];
+      return {
+        session: {
+          id: sessionData.session.id,
+          created_at: sessionData.session.created_at
+        },
+        first_prompt: sessionData.first_prompt
+      };
     }
-    throw new Error('Invalid response structure from webhook - missing session.id or first_prompt');
-
+    
+    return data;
   } catch (error) {
-    console.error('=== START SESSION ERROR ===');
-    console.error('Error type:', error?.constructor?.name);
-    console.error('Error message:', error instanceof Error ? error.message : String(error));
-    console.error('Full error:', error);
+    console.error('💥 Start session error:', error);
     throw error;
   }
 }
 
-export async function postAnswer(
-  sessionId: string, 
-  questionId: string, 
-  answerText: string
+export async function submitAnswer(
+  sessionId: string,
+  answer: string
 ): Promise<AnswerResponse> {
   try {
-    console.log('=== POST ANSWER REQUEST ===');
-    console.log('Session ID:', sessionId);
-    console.log('Question ID:', questionId);
-    console.log('Answer text:', answerText);
-
-    // CORRECT URL FORMAT: /webhook/{UUID}/session/{session_id}/answer
-    const url = `${API_BASE}/webhook/${WEBHOOK_UUID}/session/${sessionId}/answer`;
-    console.log('Full answer URL:', url);
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({ 
-        session_id: sessionId, 
-        question_id: questionId, 
-        answer_text: answerText 
-      }),
-    });
-
-    console.log('Answer response status:', res.status);
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error('Answer failed:', text);
-      throw new Error(`Answer failed: ${res.status} - ${text}`);
-    }
-
-    const text = await res.text();
-    console.log('Answer response text:', text);
-    const data = JSON.parse(text);
-
-    // Handle array response from N8N
-    if (Array.isArray(data) && data.length > 0) {
-      const firstItem = data[0];
-      console.log('Answer response first item:', firstItem);
-      
-      // Parse current_state JSON string to extract status
-      let sessionStatus: 'answered' | 'in_progress' = 'in_progress';
-      if (firstItem?.current_state) {
-        try {
-          console.log('Raw current_state:', firstItem.current_state);
-          const currentState = JSON.parse(firstItem.current_state);
-          console.log('Parsed current_state:', currentState);
-          sessionStatus = currentState.status || 'in_progress';
-          console.log('Extracted session status:', sessionStatus);
-        } catch (e) {
-          console.error('Failed to parse current_state:', e);
-        }
+    console.log('📤 Submitting answer for session:', sessionId);
+    const response = await fetch(
+      `${API_BASE}/webhook/6a535534-b0e8-48b5-9bbe-c5b72c35b895/session/${sessionId}/answer`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ answer }),
       }
+    );
 
-      const response: AnswerResponse = {
-        reply_text: firstItem?.json?.reply_text || firstItem?.reply_text || 'No response',
-        recommended_action: firstItem?.json?.recommended_action || firstItem?.recommended_action,
-        tags: firstItem?.json?.tags || firstItem?.tags,
-        explainability: firstItem?.json?.explainability || firstItem?.explainability,
-        session_status: sessionStatus,
-      };
-
-      console.log('Final answer response:', response);
-      return response;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Submit answer failed:', response.status, errorText);
+      throw new Error(`Failed to submit answer: ${response.status}`);
     }
 
-    return data as AnswerResponse;
-
+    const data = await response.json();
+    console.log('✅ Answer submitted:', data);
+    return data;
   } catch (error) {
-    console.error('=== POST ANSWER ERROR ===');
-    console.error('Error:', error);
+    console.error('💥 Submit answer error:', error);
     throw error;
   }
 }
 
 export async function completeSession(
-  sessionId: string, 
+  sessionId: string,
   optIn: boolean
 ): Promise<CompleteResponse> {
   try {
-    console.log('=== COMPLETE SESSION REQUEST ===');
-    console.log('Session ID:', sessionId);
-    console.log('Opt-in:', optIn);
-
-    const url = `${API_BASE}/webhook/session/complete`;
-    console.log('Full complete URL:', url);
-
-    const res = await fetch(url, {
+    console.log('🏁 Completing session:', sessionId, 'optIn:', optIn);
+    const response = await fetch(`${API_BASE}/webhook/session/complete`, {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
       },
-      body: JSON.stringify({ 
-        session_id: sessionId, 
-        opt_in_email: optIn 
+      body: JSON.stringify({
+        session_id: sessionId,
+        opt_in: optIn,
       }),
     });
 
-    console.log('Complete response status:', res.status);
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error('Complete failed:', text);
-      throw new Error(`Complete failed: ${res.status} - ${text}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Complete session failed:', response.status, errorText);
+      throw new Error(`Failed to complete session: ${response.status}`);
     }
 
-    const text = await res.text();
-    console.log('Complete response text (raw):', text);
+    const data = await response.json();
+    console.log('✅ Session completed:', data);
     
-    const data = JSON.parse(text);
-    console.log('Complete response parsed:', data);
-
-    // Handle array response from N8N - extract first element
+    // Handle array response format
     if (Array.isArray(data) && data.length > 0) {
-      const firstItem = data[0];
-      console.log('Complete response first item:', firstItem);
-      
-      // Validate required fields
-      if (!firstItem.readiness_score || !firstItem.roi_estimate || !firstItem.summary_html) {
-        console.error('Missing required fields in response:', firstItem);
-        throw new Error('Invalid response structure - missing required fields');
-      }
-
-      const result: CompleteResponse = {
-        status: firstItem.status || 'success',
-        message: firstItem.message || 'Assessment complete',
-        readiness_score: firstItem.readiness_score,
-        roi_estimate: {
-          estimated_dollars: firstItem.roi_estimate.estimated_dollars,
-          annual_hours_saved: firstItem.roi_estimate.annual_hours_saved,
-          team_efficiency_gain: firstItem.roi_estimate.team_efficiency_gain,
-        },
-        summary_html: firstItem.summary_html,
+      const result = data[0];
+      return {
+        readiness_score: result.readiness_score,
+        roi_estimate: result.roi_estimate,
+        summary_html: result.summary_html
       };
-
-      console.log('Final complete response:', result);
-      return result;
     }
-
-    // Fallback for direct object response
-    if (data?.readiness_score && data?.roi_estimate && data?.summary_html) {
-      console.log('Direct object response format');
-      return data as CompleteResponse;
-    }
-
-    console.error('Unexpected complete response structure:', data);
-    throw new Error('Invalid response structure from complete endpoint');
-
+    
+    return data;
   } catch (error) {
-    console.error('=== COMPLETE SESSION ERROR ===');
-    console.error('Error:', error);
+    console.error('💥 Complete session error:', error);
     throw error;
   }
 }
