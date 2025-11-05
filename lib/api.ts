@@ -54,38 +54,57 @@ export async function startSession(email: string, personaHint: string): Promise<
     }
 
     const data = await response.json();
-    console.log('✅ Raw response data:', JSON.stringify(data, null, 2));
+    console.log('✅ Raw response received:', data);
+    console.log('✅ Response is array:', Array.isArray(data));
+    console.log('✅ Array length:', Array.isArray(data) ? data.length : 'N/A');
     
     // Handle array response format - webhook returns array with single object
-    if (Array.isArray(data) && data.length > 0) {
-      const sessionData = data[0];
-      console.log('📦 Parsed session data:', sessionData);
-      
-      // Validate required fields
-      if (!sessionData.session || !sessionData.session.id) {
-        console.error('❌ Missing session.id in response:', sessionData);
-        throw new Error('Invalid response: missing session ID');
-      }
-      
-      if (!sessionData.first_prompt) {
-        console.error('❌ Missing first_prompt in response:', sessionData);
-        throw new Error('Invalid response: missing first prompt');
-      }
-      
-      console.log('✅ Session ID:', sessionData.session.id);
-      console.log('✅ First prompt:', sessionData.first_prompt);
-      
-      return {
-        session: sessionData.session,
-        first_prompt: sessionData.first_prompt
-      };
+    if (!Array.isArray(data)) {
+      console.error('❌ Response is not an array:', typeof data);
+      throw new Error('Invalid response format: expected array');
+    }
+
+    if (data.length === 0) {
+      console.error('❌ Response array is empty');
+      throw new Error('Invalid response format: empty array');
+    }
+
+    const sessionData = data[0];
+    console.log('📦 First array element:', sessionData);
+    console.log('📦 Has session property:', 'session' in sessionData);
+    console.log('📦 Has first_prompt property:', 'first_prompt' in sessionData);
+    
+    // Validate session object exists
+    if (!sessionData.session) {
+      console.error('❌ Missing session object in response:', sessionData);
+      throw new Error('Invalid response: missing session object');
+    }
+
+    // Validate session.id exists
+    if (!sessionData.session.id) {
+      console.error('❌ Missing session.id:', sessionData.session);
+      throw new Error('Invalid response: missing session ID');
     }
     
-    // If not an array, log the actual structure
-    console.error('❌ Unexpected response format:', data);
-    throw new Error('Invalid response format: expected array with session data');
+    // Validate first_prompt exists
+    if (!sessionData.first_prompt) {
+      console.error('❌ Missing first_prompt:', sessionData);
+      throw new Error('Invalid response: missing first prompt');
+    }
+    
+    console.log('✅ Session ID:', sessionData.session.id);
+    console.log('✅ First prompt:', sessionData.first_prompt);
+    console.log('✅ Validation passed, returning data');
+    
+    return {
+      session: sessionData.session,
+      first_prompt: sessionData.first_prompt
+    };
   } catch (error) {
     console.error('💥 Start session error:', error);
+    console.error('💥 Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('💥 Error message:', error instanceof Error ? error.message : String(error));
+    
     if (error instanceof Error) {
       throw error;
     }
