@@ -1,19 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { ValidatedEntryField } from '@/components/ValidatedEntryField';
 import { toast } from 'sonner';
-
-const formSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  personaHint: z.string().min(2, 'Please enter at least 2 characters'),
-});
-
-type FormData = z.infer<typeof formSchema>;
 
 interface UserEntryFormProps {
   onSubmit: (email: string, personaHint: string) => Promise<void>;
@@ -22,22 +12,43 @@ interface UserEntryFormProps {
 
 export function UserEntryForm({ onSubmit, disabled = false }: UserEntryFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-  });
+  const [email, setEmail] = useState('');
+  const [personaHint, setPersonaHint] = useState('');
+  const [errors, setErrors] = useState<{ email?: string; personaHint?: string }>({});
 
-  const onFormSubmit = async (data: FormData) => {
-    console.log('Form onFormSubmit triggered with:', data);
+  const validateEmail = (value: string): string | undefined => {
+    if (!value) return 'Email is required';
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(value)) return 'Please enter a valid email address';
+    return undefined;
+  };
+
+  const validatePersonaHint = (value: string): string | undefined => {
+    if (!value) return 'Role is required';
+    if (value.length < 2) return 'Please enter at least 2 characters';
+    return undefined;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const emailError = validateEmail(email);
+    const personaError = validatePersonaHint(personaHint);
+    
+    if (emailError || personaError) {
+      setErrors({
+        email: emailError,
+        personaHint: personaError,
+      });
+      return;
+    }
+
+    setErrors({});
     setIsSubmitting(true);
     
     try {
       console.log('Calling parent onSubmit...');
-      await onSubmit(data.email, data.personaHint);
+      await onSubmit(email, personaHint);
       console.log('Parent onSubmit completed successfully');
     } catch (error) {
       console.error('Form submission error:', error);
@@ -54,21 +65,26 @@ export function UserEntryForm({ onSubmit, disabled = false }: UserEntryFormProps
   };
 
   return (
-    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6">
       <ValidatedEntryField
+        id="email"
         label="Email Address"
         placeholder="your.email@company.com"
-        error={errors.email?.message}
+        type="email"
+        value={email}
+        onChange={setEmail}
+        error={errors.email}
         disabled={isSubmitting || disabled}
-        {...register('email')}
       />
       
       <ValidatedEntryField
+        id="personaHint"
         label="Your Role"
         placeholder="e.g., Marketing Manager, Software Developer"
-        error={errors.personaHint?.message}
+        value={personaHint}
+        onChange={setPersonaHint}
+        error={errors.personaHint}
         disabled={isSubmitting || disabled}
-        {...register('personaHint')}
       />
 
       <Button

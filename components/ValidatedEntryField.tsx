@@ -13,6 +13,7 @@ interface ValidatedEntryFieldProps {
   placeholder?: string;
   type?: 'text' | 'email' | 'textarea';
   id: string;
+  disabled?: boolean;
 }
 
 export function ValidatedEntryField({
@@ -23,6 +24,7 @@ export function ValidatedEntryField({
   placeholder,
   type = 'text',
   id,
+  disabled = false,
 }: ValidatedEntryFieldProps) {
   const errorId = `${id}-error`;
   const isInvalid = !!error;
@@ -41,12 +43,14 @@ export function ValidatedEntryField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
+          disabled={disabled}
           aria-invalid={isInvalid}
           aria-describedby={isInvalid ? errorId : undefined}
           className={cn(
             'bg-[#1B1B1B] border-2 text-white placeholder:text-gray-500',
             'focus:border-[#00FFFF] focus:neon-border-cyan',
-            isInvalid && 'border-[#FF0080] neon-border-pink'
+            isInvalid && 'border-[#FF0080] neon-border-pink',
+            disabled && 'opacity-50 cursor-not-allowed'
           )}
           rows={3}
         />
@@ -57,12 +61,14 @@ export function ValidatedEntryField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
+          disabled={disabled}
           aria-invalid={isInvalid}
           aria-describedby={isInvalid ? errorId : undefined}
           className={cn(
             'bg-[#1B1B1B] border-2 text-white placeholder:text-gray-500',
             'focus:border-[#00FFFF] focus:neon-border-cyan',
-            isInvalid && 'border-[#FF0080] neon-border-pink'
+            isInvalid && 'border-[#FF0080] neon-border-pink',
+            disabled && 'opacity-50 cursor-not-allowed'
           )}
         />
       )}
