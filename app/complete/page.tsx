@@ -6,7 +6,7 @@ import { CompletionForm } from '@/components/CompletionForm';
 import { SummaryCard } from '@/components/SummaryCard';
 import { HtmlSummaryView } from '@/components/HtmlSummaryView';
 import { completeSession } from '@/lib/api';
-import { CompletionResponse } from '@/lib/types';
+import { CompleteResponse } from '@/lib/types';
 import { Loader2, Trophy, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { CyberButton } from '@/components/CyberButton';
@@ -17,7 +17,7 @@ function CompleteContent() {
   const sessionId = searchParams.get('id');
   
   const [loading, setLoading] = useState(false);
-  const [summary, setSummary] = useState<CompletionResponse | null>(null);
+  const [summary, setSummary] = useState<CompleteResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

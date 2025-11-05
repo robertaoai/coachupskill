@@ -1,62 +1,75 @@
 'use client';
 
-import { TrendingUp, Clock, DollarSign, Users } from 'lucide-react';
+import { TrendingUp, Clock, DollarSign, Zap } from 'lucide-react';
 
 interface SummaryCardProps {
   readiness_score: number;
-  roi_estimate: {
-    annual_hours_saved: number;
-    estimated_dollars: number;
-    team_efficiency_gain: string;
+  roi_metrics: {
+    time_saved_hours: number;
+    cost_reduction_percent: number;
+    productivity_gain_percent: number;
   };
 }
 
-export function SummaryCard({ readiness_score, roi_estimate }: SummaryCardProps) {
+export function SummaryCard({ readiness_score, roi_metrics }: SummaryCardProps) {
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-[#8AFF00]';
+    if (score >= 60) return 'text-[#00FFFF]';
+    return 'text-[#FF0080]';
+  };
+
+  const getScoreLabel = (score: number) => {
+    if (score >= 80) return 'EXCELLENT';
+    if (score >= 60) return 'GOOD';
+    return 'NEEDS WORK';
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <div className="inline-block relative">
-          <div className="text-8xl font-['Orbitron'] font-black text-[#8AFF00] neon-glow-green">
-            {readiness_score}
-          </div>
-          <div className="text-xl text-[#00FFFF] font-['Orbitron'] uppercase tracking-wider mt-2">
-            Readiness Score
-          </div>
+    <div className="bg-[#1B1B1B] border-2 border-[#8AFF00] rounded-lg p-6 neon-border-green">
+      <div className="text-center mb-6">
+        <h2 className="text-sm font-['Orbitron'] text-gray-400 uppercase mb-2">
+          AI Readiness Score
+        </h2>
+        <div className={`text-6xl font-['Orbitron'] font-black ${getScoreColor(readiness_score)} neon-glow-green`}>
+          {readiness_score}
         </div>
+        <p className={`text-lg font-['Orbitron'] mt-2 ${getScoreColor(readiness_score)}`}>
+          {getScoreLabel(readiness_score)}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-[#1B1B1B] border-2 border-[#00FFFF] rounded-lg p-4 neon-border-cyan">
-          <div className="flex items-center gap-3 mb-2">
+        <div className="bg-[#0A0A0A] border border-[#00FFFF]/30 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-2">
             <Clock className="w-5 h-5 text-[#00FFFF]" />
-            <span className="text-xs text-[#00FFFF] font-['Orbitron'] uppercase">Hours Saved</span>
+            <h3 className="text-xs font-['Orbitron'] text-[#00FFFF] uppercase">Time Saved</h3>
           </div>
-          <div className="text-3xl font-['Orbitron'] font-bold text-white">
-            {roi_estimate.annual_hours_saved}
-          </div>
-          <div className="text-xs text-gray-400 mt-1">per year</div>
+          <p className="text-2xl font-['Orbitron'] font-bold text-white">
+            {roi_metrics.time_saved_hours}h
+          </p>
+          <p className="text-xs text-gray-400 mt-1">per week</p>
         </div>
 
-        <div className="bg-[#1B1B1B] border-2 border-[#8AFF00] rounded-lg p-4 neon-border-green">
-          <div className="flex items-center gap-3 mb-2">
-            <DollarSign className="w-5 h-5 text-[#8AFF00]" />
-            <span className="text-xs text-[#8AFF00] font-['Orbitron'] uppercase">Value</span>
+        <div className="bg-[#0A0A0A] border border-[#FF0080]/30 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <DollarSign className="w-5 h-5 text-[#FF0080]" />
+            <h3 className="text-xs font-['Orbitron'] text-[#FF0080] uppercase">Cost Reduction</h3>
           </div>
-          <div className="text-3xl font-['Orbitron'] font-bold text-white">
-            ${roi_estimate.estimated_dollars.toLocaleString()}
-          </div>
-          <div className="text-xs text-gray-400 mt-1">estimated</div>
+          <p className="text-2xl font-['Orbitron'] font-bold text-white">
+            {roi_metrics.cost_reduction_percent}%
+          </p>
+          <p className="text-xs text-gray-400 mt-1">potential savings</p>
         </div>
 
-        <div className="bg-[#1B1B1B] border-2 border-[#FF0080] rounded-lg p-4 neon-border-pink">
-          <div className="flex items-center gap-3 mb-2">
-            <Users className="w-5 h-5 text-[#FF0080]" />
-            <span className="text-xs text-[#FF0080] font-['Orbitron'] uppercase">Efficiency</span>
+        <div className="bg-[#0A0A0A] border border-[#8AFF00]/30 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Zap className="w-5 h-5 text-[#8AFF00]" />
+            <h3 className="text-xs font-['Orbitron'] text-[#8AFF00] uppercase">Productivity</h3>
           </div>
-          <div className="text-3xl font-['Orbitron'] font-bold text-white">
-            {roi_estimate.team_efficiency_gain}
-          </div>
-          <div className="text-xs text-gray-400 mt-1">team gain</div>
+          <p className="text-2xl font-['Orbitron'] font-bold text-white">
+            +{roi_metrics.productivity_gain_percent}%
+          </p>
+          <p className="text-xs text-gray-400 mt-1">gain potential</p>
         </div>
       </div>
     </div>

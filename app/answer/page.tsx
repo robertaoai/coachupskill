@@ -2,21 +2,23 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChatInterface } from '@/components/ChatInterface';
+import { ChatThread } from '@/components/ChatThread';
+import { AnswerForm } from '@/components/AnswerForm';
 import { useLocalSession } from '@/hooks/useLocalSession';
 import { postAnswer } from '@/lib/api';
+import { ChatMessage } from '@/lib/types';
+import { ArrowLeft, MessageSquare, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Brain, Loader2 } from 'lucide-react';
+import { CyberButton } from '@/components/CyberButton';
 
 function AnswerContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('id');
-  const { getSession, saveSession } = useLocalSession();
-  
-  const [messages, setMessages] = useState<any[]>([]);
-  const [currentQuestion, setCurrentQuestion] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const { chatHistory, currentQuestionId, saveSession } = useLocalSession();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [questionId, setQuestionId] = useState('q1');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!sessionId) {
@@ -25,25 +27,21 @@ function AnswerContent() {
       return;
     }
 
-    const session = getSession(sessionId);
-    if (!session) {
-      toast.error('Session not found');
-      router.push('/');
-      return;
+    if (chatHistory.length > 0) {
+      setMessages(chatHistory);
+      setQuestionId(currentQuestionId);
     }
+  }, [chatHistory, currentQuestionId, sessionId, router]);
 
-    setMessages(session.messages);
-    setCurrentQuestion(session.currentQuestion);
-    setIsLoading(false);
-  }, [sessionId, getSession, router]);
-
-  const handleSendMessage = async (text: string) => {
+  const handleSubmit = async (answer: string) => {
     if (!sessionId) return;
-
-    const userMessage = {
+    
+    setError(null);
+    
+    const userMessage: ChatMessage = {
       id: Date.now().toString(),
-      type: 'user' as const,
-      text,
+      type: 'user',
+      text: answer,
       timestamp: new Date(),
     };
 
@@ -51,60 +49,86 @@ function AnswerContent() {
     setMessages(updatedMessages);
 
     try {
-      const result = await postAnswer(sessionId, currentQuestion, text);
+      const response = await postAnswer(sessionId, questionId, answer);
+      
+      const aiMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'ai',
+        text: response.reply_text,
+        recommended_action: response.recommended_action,
+        tags: response.tags,
+        explainability: response.explainability,
+        timestamp: new Date(),
+      };
 
-      if (result.next_prompt) {
-        const aiMessage = {
-          id: (Date.now() + 1).toString(),
-          type: 'ai' as const,
-          text: result.next_prompt,
-          timestamp: new Date(),
-          recommended_action: result.recommended_action,
-          tags: result.tags,
-          explainability: result.explainability,
-        };
-        
-        const finalMessages = [...updatedMessages, aiMessage];
-        setMessages(finalMessages);
-        setCurrentQuestion(result.next_question || '');
-        saveSession(sessionId, finalMessages, result.next_question || '');
-      } else {
-        toast.success('Assessment complete!');
-        router.push(`/complete?id=${sessionId}`);
+      const finalMessages = [...updatedMessages, aiMessage];
+      setMessages(finalMessages);
+
+      const nextQuestionId = `q${parseInt(questionId.substring(1)) + 1}`;
+      setQuestionId(nextQuestionId);
+      saveSession(sessionId, finalMessages, nextQuestionId);
+
+      if (parseInt(nextQuestionId.substring(1)) > 9) {
+        toast.success('Assessment complete! Proceeding to summary...');
+        setTimeout(() => {
+          router.push(`/complete?id=${sessionId}`);
+        }, 1500);
       }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to send answer');
-      setMessages(messages);
+    } catch (err: any) {
+      setError(err.message || 'Failed to submit answer');
+      toast.error('Failed to submit answer. Please try again.');
     }
   };
 
-  if (isLoading) {
+  if (!sessionId) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Brain className="w-16 h-16 text-[#00FFFF] mx-auto mb-4 animate-pulse" />
-          <p className="text-[#00FFFF] font-['Orbitron']">Loading session...</p>
-        </div>
+        <Loader2 className="w-16 h-16 text-[#00FFFF] animate-spin" />
       </div>
     );
   }
 
+  const currentQuestion = parseInt(questionId.substring(1));
+  const isFinalQuestion = currentQuestion >= 9;
+
   return (
-    <main className="min-h-screen flex flex-col scan-line">
-      <header className="bg-[#1B1B1B] border-b-2 border-[#00FFFF] p-4 neon-border-cyan">
-        <div className="max-w-2xl mx-auto flex items-center gap-3">
-          <Brain className="w-8 h-8 text-[#FF0080]" />
-          <h1 className="text-2xl font-['Orbitron'] font-bold text-[#00FFFF] neon-glow-cyan">
-            AI SKILLS ASSESSMENT
-          </h1>
+    <main className="h-screen flex flex-col p-4 max-w-4xl mx-auto">
+      <header className="flex items-center justify-between py-4 mb-4 border-b-2 border-[#00FFFF]/20">
+        <CyberButton
+          variant="secondary"
+          onClick={() => router.push('/')}
+          className="px-3 py-2"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back
+        </CyberButton>
+        
+        <div className="text-center">
+          <div className="flex items-center gap-2 justify-center">
+            <MessageSquare className="w-5 h-5 text-[#00FFFF]" />
+            <h1 className="text-2xl font-['Orbitron'] font-bold text-[#00FFFF] neon-glow-cyan">
+              ASSESSMENT
+            </h1>
+          </div>
+          <p className="text-sm text-gray-400 mt-1">
+            Question {currentQuestion} of 9
+          </p>
         </div>
+        
+        <div className="w-24" />
       </header>
 
-      <div className="flex-1 max-w-2xl mx-auto w-full p-4">
-        <ChatInterface
-          messages={messages}
-          onSendMessage={handleSendMessage}
-        />
+      <div className="flex-1 overflow-hidden mb-4">
+        <ChatThread messages={messages} />
+      </div>
+
+      <div className="border-t-2 border-[#00FFFF]/20 pt-4">
+        {error && (
+          <div className="mb-4 p-3 bg-[#FF0080]/10 border-2 border-[#FF0080] rounded-lg">
+            <p className="text-[#FF0080] text-sm">⚠ {error}</p>
+          </div>
+        )}
+        <AnswerForm onSubmit={handleSubmit} isFinalQuestion={isFinalQuestion} />
       </div>
     </main>
   );
