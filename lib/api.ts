@@ -16,6 +16,7 @@ export interface AnswerResponse {
   recommended_action?: string;
   tags?: string[];
   explainability?: string;
+  session_status?: 'answered' | 'in_progress';
 }
 
 export interface CompleteResponse {
@@ -194,7 +195,31 @@ export async function postAnswer(
     if (Array.isArray(data) && data.length > 0) {
       const firstItem = data[0];
       console.log('Answer response first item:', firstItem);
-      return firstItem?.json || firstItem;
+      
+      // Parse current_state JSON string to extract status
+      let sessionStatus: 'answered' | 'in_progress' = 'in_progress';
+      if (firstItem?.current_state) {
+        try {
+          console.log('Raw current_state:', firstItem.current_state);
+          const currentState = JSON.parse(firstItem.current_state);
+          console.log('Parsed current_state:', currentState);
+          sessionStatus = currentState.status || 'in_progress';
+          console.log('Extracted session status:', sessionStatus);
+        } catch (e) {
+          console.error('Failed to parse current_state:', e);
+        }
+      }
+
+      const response: AnswerResponse = {
+        reply_text: firstItem?.json?.reply_text || firstItem?.reply_text || 'No response',
+        recommended_action: firstItem?.json?.recommended_action || firstItem?.recommended_action,
+        tags: firstItem?.json?.tags || firstItem?.tags,
+        explainability: firstItem?.json?.explainability || firstItem?.explainability,
+        session_status: sessionStatus,
+      };
+
+      console.log('Final answer response:', response);
+      return response;
     }
 
     return data as AnswerResponse;
@@ -215,8 +240,8 @@ export async function completeSession(
     console.log('Session ID:', sessionId);
     console.log('Opt-in:', optIn);
 
-    // CORRECT URL FORMAT: /webhook/{UUID}/session/complete
-    const url = `${API_BASE}/webhook/${WEBHOOK_UUID}/session/complete`;
+    // CORRECT URL FORMAT: /webhook/session/complete
+    const url = `${API_BASE}/webhook/session/complete`;
     console.log('Full complete URL:', url);
 
     const res = await fetch(url, {

@@ -8,6 +8,11 @@ export interface AnswerResponse {
   recommended_action?: string;
   tags?: string[];
   explainability?: string;
+  session_status?: 'answered' | 'in_progress';
+}
+
+export interface SessionState {
+  status: 'answered' | 'in_progress';
 }
 
 export interface CompleteResponse {
