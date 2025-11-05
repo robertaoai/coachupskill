@@ -7,7 +7,8 @@ import { SummaryCard } from '@/components/SummaryCard';
 import { HtmlSummaryView } from '@/components/HtmlSummaryView';
 import { completeSession } from '@/lib/api';
 import { CompleteResponse } from '@/lib/types';
-import { Loader2, Trophy, ArrowLeft } from 'lucide-react';
+import { useLocalSession } from '@/hooks/useLocalSession';
+import { Loader2, Trophy, ArrowLeft, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { CyberButton } from '@/components/CyberButton';
 
@@ -15,6 +16,7 @@ function CompleteContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('id');
+  const { clearSession } = useLocalSession();
   
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<CompleteResponse | null>(null);
@@ -49,6 +51,13 @@ function CompleteContent() {
     }
   };
 
+  const handleNewAssessment = () => {
+    console.log('🔄 Starting new assessment...');
+    clearSession();
+    toast.success('Session reset! Starting new assessment...');
+    router.push('/');
+  };
+
   if (!sessionId) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -65,10 +74,10 @@ function CompleteContent() {
       <header className="flex items-center justify-between py-6 mb-8 border-b-2 border-[#00FFFF]/20">
         <CyberButton
           variant="secondary"
-          onClick={() => router.push('/')}
+          onClick={handleNewAssessment}
           className="px-3 py-2"
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
+          <RefreshCw className="w-4 h-4 mr-2" />
           New Assessment
         </CyberButton>
         
@@ -128,6 +137,17 @@ function CompleteContent() {
                 Detailed Summary
               </h2>
               <HtmlSummaryView html_summary={summary.summary_html} />
+            </div>
+
+            <div className="flex justify-center pb-8">
+              <CyberButton
+                variant="primary"
+                onClick={handleNewAssessment}
+                className="px-8 py-4 text-lg"
+              >
+                <RefreshCw className="w-5 h-5 mr-3" />
+                Next Assessment
+              </CyberButton>
             </div>
           </div>
         )}

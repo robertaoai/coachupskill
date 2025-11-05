@@ -25,14 +25,16 @@ export default function Home() {
       console.log('postStartSession result:', result);
       
       if (!result.session_id) {
-        console.error('No session_id in result:', result);
+        console.error('❌ No session_id in result:', result);
         throw new Error('No session ID received from server');
       }
       
       if (!result.first_prompt) {
-        console.error('No first_prompt in result:', result);
+        console.error('❌ No first_prompt in result:', result);
         throw new Error('No first prompt received from server');
       }
+      
+      console.log('✅ Session ID extracted:', result.session_id);
       
       const initialMessage = {
         id: '1',
@@ -41,15 +43,15 @@ export default function Home() {
         timestamp: new Date(),
       };
       
-      console.log('Saving session to localStorage...');
+      console.log('💾 Saving session to localStorage...');
       saveSession(result.session_id, [initialMessage], 'q1');
-      console.log('Session saved successfully');
+      console.log('✅ Session saved successfully');
       
       setFirstPrompt(result.first_prompt);
       
       toast.success('Session initialized successfully!');
       
-      console.log('Navigating to answer page...');
+      console.log('🔄 Navigating to answer page...');
       setTimeout(() => {
         router.push(`/answer?id=${result.session_id}`);
       }, 1000);

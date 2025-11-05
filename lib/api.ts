@@ -75,11 +75,13 @@ export async function postStartSession(email: string, persona_hint: string): Pro
     }
 
     // Handle N8N array response with nested session object
+    // Expected format: [{ session: { id: "...", ... }, first_prompt: "..." }]
     if (Array.isArray(data)) {
       console.log('Response is array, length:', data.length);
       if (data.length > 0) {
         const firstItem = data[0];
         console.log('First item:', firstItem);
+        console.log('First item keys:', Object.keys(firstItem));
         
         // Check for error status in response
         if (firstItem?.status === 'error') {
@@ -90,50 +92,27 @@ export async function postStartSession(email: string, persona_hint: string): Pro
           throw err;
         }
 
-        // Extract session data from N8N response structure
-        // N8N returns: [{ session: { id, ... }, first_prompt }]
+        // CRITICAL: Extract session.id from nested structure
         if (firstItem?.session?.id && firstItem?.first_prompt) {
+          const sessionId = firstItem.session.id;
+          console.log('✅ Extracted session.id:', sessionId);
+          
           const result = {
-            session_id: firstItem.session.id,
+            session_id: sessionId,
             first_prompt: firstItem.first_prompt,
             first_question: 'q1',
           };
-          console.log('Extracted result from N8N array response:', result);
+          console.log('✅ Final result:', result);
           return result;
         }
 
-        // Fallback: check if it's wrapped in json property
-        if (firstItem?.json?.session?.id && firstItem?.json?.first_prompt) {
-          const result = {
-            session_id: firstItem.json.session.id,
-            first_prompt: firstItem.json.first_prompt,
-            first_question: 'q1',
-          };
-          console.log('Extracted result from json wrapper:', result);
-          return result;
-        }
+        console.error('❌ Missing session.id or first_prompt in response');
+        console.error('Session object:', firstItem?.session);
+        console.error('First prompt:', firstItem?.first_prompt);
       }
     }
 
-    // Handle direct object response (if N8N changes format)
-    if (data?.session?.id && data?.first_prompt) {
-      console.log('Direct object response with nested session');
-      const result = {
-        session_id: data.session.id,
-        first_prompt: data.first_prompt,
-        first_question: 'q1',
-      };
-      console.log('Extracted result:', result);
-      return result;
-    }
-
-    // Legacy format fallback
-    if (data?.session_id && data?.first_prompt) {
-      console.log('Legacy flat response format');
-      return data as StartResponse;
-    }
-
-    console.error('Unexpected response structure:', data);
+    console.error('❌ Unexpected response structure:', data);
     console.error('Response type:', typeof data);
     console.error('Response keys:', Object.keys(data || {}));
     if (Array.isArray(data) && data.length > 0) {
@@ -142,7 +121,7 @@ export async function postStartSession(email: string, persona_hint: string): Pro
         console.error('Session keys:', Object.keys(data[0].session || {}));
       }
     }
-    throw new Error('Invalid response structure from webhook');
+    throw new Error('Invalid response structure from webhook - missing session.id or first_prompt');
 
   } catch (error) {
     console.error('=== START SESSION ERROR ===');
