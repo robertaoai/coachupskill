@@ -3,21 +3,54 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CyberButton } from '@/components/CyberButton';
+import { ValidatedEntryField } from '@/components/ValidatedEntryField';
 import { startSession } from '@/lib/api';
 import { useLocalSession } from '@/hooks/useLocalSession';
-import { Loader2, Sparkles, Zap, Target } from 'lucide-react';
+import { Loader2, Sparkles, Zap, Target, Mail, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function HomePage() {
   const router = useRouter();
   const { saveSession } = useLocalSession();
   const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [personaHint, setPersonaHint] = useState('');
+  const [errors, setErrors] = useState<{ email?: string; personaHint?: string }>({});
+
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: { email?: string; personaHint?: string } = {};
+
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!validateEmail(email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    if (!personaHint.trim()) {
+      newErrors.personaHint = 'Role/Title is required';
+    } else if (personaHint.trim().length < 2) {
+      newErrors.personaHint = 'Role/Title must be at least 2 characters';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleStartAssessment = async () => {
+    if (!validateForm()) {
+      toast.error('Please fill in all required fields correctly');
+      return;
+    }
+
     setLoading(true);
     try {
-      console.log('🎯 Starting new assessment...');
-      const response = await startSession();
+      console.log('🎯 Starting new assessment with:', { email, personaHint });
+      const response = await startSession(email, personaHint);
       
       console.log('📦 Session response:', response);
       console.log('🆔 Session ID:', response.session.id);
@@ -83,37 +116,85 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* CTA Section */}
-        <div className="bg-[#1B1B1B] border-2 border-[#00FFFF] rounded-lg p-8 neon-border-cyan">
-          <h2 className="text-2xl font-['Orbitron'] text-[#00FFFF] mb-4 text-center">
-            Ready to Begin?
+        {/* Form Section */}
+        <div className="bg-[#1B1B1B] border-2 border-[#00FFFF] rounded-lg p-8 neon-border-cyan mb-8">
+          <h2 className="text-2xl font-['Orbitron'] text-[#00FFFF] mb-6 text-center">
+            Get Started
           </h2>
-          <p className="text-gray-300 font-['Exo_2'] mb-6 text-center">
-            Start your assessment now and discover how AI can transform your business
-          </p>
           
-          <CyberButton
-            onClick={handleStartAssessment}
-            disabled={loading}
-            className="w-full"
-            variant="primary"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Initializing...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-5 h-5" />
-                <span>Start Assessment</span>
-              </>
-            )}
-          </CyberButton>
+          <div className="space-y-6">
+            {/* Email Field */}
+            <div>
+              <ValidatedEntryField
+                id="email"
+                label="Email Address"
+                type="email"
+                value={email}
+                onChange={(value) => {
+                  setEmail(value);
+                  if (errors.email) {
+                    setErrors({ ...errors, email: undefined });
+                  }
+                }}
+                error={errors.email}
+                placeholder="your.email@company.com"
+                disabled={loading}
+              />
+              <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                <Mail className="w-3 h-3" />
+                <span className="font-['Exo_2']">We'll send your results here</span>
+              </div>
+            </div>
+
+            {/* Persona Hint Field */}
+            <div>
+              <ValidatedEntryField
+                id="personaHint"
+                label="Your Role / Title"
+                type="text"
+                value={personaHint}
+                onChange={(value) => {
+                  setPersonaHint(value);
+                  if (errors.personaHint) {
+                    setErrors({ ...errors, personaHint: undefined });
+                  }
+                }}
+                error={errors.personaHint}
+                placeholder="e.g., Software Manager, CTO, Product Lead"
+                disabled={loading}
+              />
+              <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                <Briefcase className="w-3 h-3" />
+                <span className="font-['Exo_2']">Helps us personalize your assessment</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Start Button */}
+          <div className="mt-8">
+            <CyberButton
+              onClick={handleStartAssessment}
+              disabled={loading}
+              className="w-full"
+              variant="primary"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Initializing...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5" />
+                  <span>Start Assessment</span>
+                </>
+              )}
+            </CyberButton>
+          </div>
         </div>
 
         {/* Trust Indicators */}
-        <div className="mt-8 text-center">
+        <div className="text-center">
           <p className="text-sm text-gray-500 font-['Exo_2']">
             🔒 Your data is secure • ⚡ Takes less than 5 minutes • 🎯 100% personalized
           </p>

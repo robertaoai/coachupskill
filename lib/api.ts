@@ -33,14 +33,18 @@ export interface CompleteResponse {
   summary_html: string;
 }
 
-export async function startSession(): Promise<StartSessionResponse> {
+export async function startSession(email: string, personaHint: string): Promise<StartSessionResponse> {
   try {
-    console.log('🚀 Starting session...');
+    console.log('🚀 Starting session with:', { email, personaHint });
     const response = await fetch(`${API_BASE}/webhook/session/start`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        email,
+        persona_hint: personaHint,
+      }),
     });
 
     if (!response.ok) {
