@@ -32,23 +32,23 @@ export function UserEntryForm({ onSubmit, disabled = false }: UserEntryFormProps
   });
 
   const onFormSubmit = async (data: FormData) => {
+    console.log('Form onFormSubmit triggered with:', data);
     setIsSubmitting(true);
-    console.log('Form submitted:', data);
     
     try {
+      console.log('Calling parent onSubmit...');
       await onSubmit(data.email, data.personaHint);
-      console.log('Submit successful');
+      console.log('Parent onSubmit completed successfully');
     } catch (error) {
       console.error('Form submission error:', error);
       
-      // Handle validation errors
       if (error && typeof error === 'object' && 'validation' in error) {
         const validationError = error as { validation: string[] };
         toast.error(validationError.validation.join(', '));
       } else {
         toast.error(error instanceof Error ? error.message : 'Failed to start session. Please try again.');
       }
-      
+    } finally {
       setIsSubmitting(false);
     }
   };
