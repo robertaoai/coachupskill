@@ -4,12 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserEntryForm } from '@/components/UserEntryForm';
 import { startSession } from '@/lib/api';
-import { useLocalSession } from '@/hooks/useLocalSession';
 import { toast } from 'sonner';
+
+const SESSION_STORAGE_KEY = 'ai_coach_session';
 
 export default function SessionStartFlow() {
   const router = useRouter();
-  const { saveSession } = useLocalSession();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleStartSession = async (email: string, personaHint: string) => {
@@ -27,23 +27,30 @@ export default function SessionStartFlow() {
       console.log('✅ Session ID:', response.session.id);
       console.log('✅ First prompt:', response.first_prompt);
       
-      // Save session data to localStorage
-      console.log('💾 Saving session to localStorage...');
-      saveSession(
-        response.session.id,
-        response.first_prompt,
-        [{
+      // Save session data DIRECTLY to localStorage
+      const sessionData = {
+        sessionId: response.session.id,
+        firstPrompt: response.first_prompt,
+        chatHistory: [{
           id: 'initial',
           content: response.first_prompt,
           isUser: false,
-          timestamp: new Date()
-        }]
-      );
+          timestamp: new Date().toISOString()
+        }],
+        savedAt: new Date().toISOString()
+      };
       
-      console.log('✅ Session saved successfully');
+      console.log('💾 Saving session to localStorage:', sessionData);
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
+      
+      // Verify it was saved
+      const verification = localStorage.getItem(SESSION_STORAGE_KEY);
+      console.log('✅ Verification - Data in localStorage:', verification);
+      
+      // Small delay to ensure localStorage write completes
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       console.log('🚀 Navigating to /answer-flow...');
-      
-      // Navigate to answer flow
       router.push('/answer-flow');
       
     } catch (error) {

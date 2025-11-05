@@ -11,7 +11,7 @@ interface SessionData {
     id: string;
     content: string;
     isUser: boolean;
-    timestamp: Date;
+    timestamp: string;
   }>;
   savedAt: string;
 }
@@ -27,12 +27,12 @@ export function useLocalSession() {
       if (stored) {
         try {
           const parsed: SessionData = JSON.parse(stored);
-          console.log('📦 Loaded session from localStorage:', parsed);
+          console.log('📦 useLocalSession - Loaded from localStorage:', parsed);
           setSessionId(parsed.sessionId);
           setFirstPrompt(parsed.firstPrompt);
           setChatHistory(parsed.chatHistory || []);
         } catch (e) {
-          console.error('❌ Failed to parse session from localStorage:', e);
+          console.error('❌ useLocalSession - Failed to parse:', e);
         }
       }
     }
@@ -43,7 +43,7 @@ export function useLocalSession() {
     prompt: string,
     history: SessionData['chatHistory']
   ) => {
-    console.log('💾 Saving session:', { 
+    console.log('💾 useLocalSession - Saving session:', { 
       sessionId: sid, 
       firstPrompt: prompt,
       historyLength: history.length 
@@ -61,12 +61,12 @@ export function useLocalSession() {
         savedAt: new Date().toISOString(),
       };
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
-      console.log('✅ Session saved to localStorage');
+      console.log('✅ useLocalSession - Session saved to localStorage');
     }
   };
 
   const clearSession = () => {
-    console.log('🗑️ Clearing session...');
+    console.log('🗑️ useLocalSession - Clearing session...');
     
     setSessionId(null);
     setFirstPrompt('');
@@ -74,7 +74,7 @@ export function useLocalSession() {
     
     if (typeof window !== 'undefined') {
       localStorage.removeItem(SESSION_STORAGE_KEY);
-      console.log('✅ Session cleared from localStorage');
+      console.log('✅ useLocalSession - Session cleared from localStorage');
     }
   };
 

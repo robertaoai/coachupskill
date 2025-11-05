@@ -5,53 +5,79 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { submitAnswer } from '@/lib/api';
-import { useLocalSession } from '@/hooks/useLocalSession';
 import { toast } from 'sonner';
 import { Send, Loader2 } from 'lucide-react';
+
+const SESSION_STORAGE_KEY = 'ai_coach_session';
 
 interface Message {
   id: string;
   content: string;
   isUser: boolean;
-  timestamp: Date;
+  timestamp: string;
+}
+
+interface SessionData {
+  sessionId: string;
+  firstPrompt: string;
+  chatHistory: Message[];
+  savedAt: string;
 }
 
 export default function AnswerFlow() {
   const router = useRouter();
-  const { sessionId, firstPrompt, chatHistory, saveSession } = useLocalSession();
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [firstPrompt, setFirstPrompt] = useState<string>('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentAnswer, setCurrentAnswer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     console.log('=== ANSWER FLOW MOUNTED ===');
-    console.log('Session ID from hook:', sessionId);
-    console.log('First prompt from hook:', firstPrompt);
-    console.log('Chat history from hook:', chatHistory);
+    
+    // Load session from localStorage
+    const loadSession = () => {
+      const stored = localStorage.getItem(SESSION_STORAGE_KEY);
+      console.log('📦 Raw localStorage data:', stored);
+      
+      if (!stored) {
+        console.error('❌ No session data in localStorage');
+        toast.error('No active session found');
+        router.push('/session-start-flow');
+        return;
+      }
 
-    if (!sessionId) {
-      console.error('❌ No session ID found, redirecting to start...');
-      toast.error('No active session found');
-      router.push('/session-start-flow');
-      return;
-    }
+      try {
+        const parsed: SessionData = JSON.parse(stored);
+        console.log('✅ Parsed session data:', parsed);
+        console.log('✅ Session ID:', parsed.sessionId);
+        console.log('✅ First prompt:', parsed.firstPrompt);
+        console.log('✅ Chat history:', parsed.chatHistory);
 
-    // Initialize messages from chat history or first prompt
-    if (chatHistory && chatHistory.length > 0) {
-      console.log('✅ Loading chat history:', chatHistory.length, 'messages');
-      setMessages(chatHistory);
-    } else if (firstPrompt) {
-      console.log('✅ Initializing with first prompt');
-      const initialMessage: Message = {
-        id: 'initial',
-        content: firstPrompt,
-        isUser: false,
-        timestamp: new Date()
-      };
-      setMessages([initialMessage]);
-    }
-  }, [sessionId, firstPrompt, chatHistory, router]);
+        if (!parsed.sessionId) {
+          console.error('❌ No session ID in parsed data');
+          toast.error('Invalid session data');
+          router.push('/session-start-flow');
+          return;
+        }
+
+        setSessionId(parsed.sessionId);
+        setFirstPrompt(parsed.firstPrompt);
+        setMessages(parsed.chatHistory || []);
+        setIsLoading(false);
+        
+        console.log('✅ Session loaded successfully');
+      } catch (e) {
+        console.error('❌ Failed to parse session from localStorage:', e);
+        toast.error('Failed to load session');
+        router.push('/session-start-flow');
+      }
+    };
+
+    loadSession();
+  }, [router]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -72,7 +98,7 @@ export default function AnswerFlow() {
       id: `user-${Date.now()}`,
       content: currentAnswer,
       isUser: true,
-      timestamp: new Date()
+      timestamp: new Date().toISOString()
     };
 
     const updatedMessages = [...messages, userMessage];
@@ -96,7 +122,7 @@ export default function AnswerFlow() {
         id: `ai-${Date.now()}`,
         content: response.next_prompt,
         isUser: false,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       };
 
       const finalMessages = [...updatedMessages, aiMessage];
@@ -104,7 +130,13 @@ export default function AnswerFlow() {
       
       // Save updated chat history
       console.log('💾 Saving updated chat history...');
-      saveSession(sessionId, firstPrompt, finalMessages);
+      const sessionData: SessionData = {
+        sessionId,
+        firstPrompt,
+        chatHistory: finalMessages,
+        savedAt: new Date().toISOString()
+      };
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
       
     } catch (error) {
       console.error('=== SUBMIT ANSWER ERROR ===');
@@ -120,7 +152,7 @@ export default function AnswerFlow() {
     }
   };
 
-  if (!sessionId) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#0a0a0a] via-[#1a0a2e] to-[#0a0a0a] flex items-center justify-center">
         <div className="text-center">
@@ -129,6 +161,10 @@ export default function AnswerFlow() {
         </div>
       </div>
     );
+  }
+
+  if (!sessionId) {
+    return null;
   }
 
   return (
