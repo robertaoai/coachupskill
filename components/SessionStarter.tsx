@@ -1,22 +1,24 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { startSession } from '@/lib/api';
-import { useSession } from '@/contexts/SessionContext';
 import { toast } from 'sonner';
 
 interface SessionStarterProps {
   email: string;
   personaHint: string;
   disabled?: boolean;
+  onSessionReady: (sessionId: string, firstPrompt: string) => void;
 }
 
-export function SessionStarter({ email, personaHint, disabled }: SessionStarterProps) {
-  const router = useRouter();
-  const { setSession } = useSession();
+export function SessionStarter({ 
+  email, 
+  personaHint, 
+  disabled,
+  onSessionReady 
+}: SessionStarterProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleStartSession = async () => {
@@ -35,14 +37,27 @@ export function SessionStarter({ email, personaHint, disabled }: SessionStarterP
       console.log('🆔 Session ID:', response.session.id);
       console.log('💬 First prompt:', response.first_prompt);
       
-      // Store session in context (which also saves to localStorage)
-      setSession(response.session.id, response.first_prompt);
+      // Store in localStorage
+      if (typeof window !== 'undefined') {
+        const sessionData = {
+          sessionId: response.session.id,
+          firstPrompt: response.first_prompt,
+          chatHistory: [{
+            id: 'initial',
+            content: response.first_prompt,
+            isUser: false,
+            timestamp: new Date().toISOString()
+          }],
+          savedAt: new Date().toISOString()
+        };
+        
+        localStorage.setItem('ai_coach_session', JSON.stringify(sessionData));
+        console.log('✅ SessionStarter - Session stored in localStorage');
+      }
       
-      // Small delay to ensure state updates complete
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      console.log('🎯 SessionStarter - Navigating to /answer-flow...');
-      router.push('/answer-flow');
+      // Trigger callback to update UI
+      console.log('🎯 SessionStarter - Triggering onSessionReady callback');
+      onSessionReady(response.session.id, response.first_prompt);
       
     } catch (error) {
       console.error('❌ SessionStarter - Error:', error);

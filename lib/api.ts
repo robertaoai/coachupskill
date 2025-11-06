@@ -23,6 +23,11 @@ export interface StartSessionResponse {
 }
 
 export interface AnswerResponse {
+  reply_text: string;
+  recommended_action: string | null;
+  tags: string[] | null;
+  explainability: string | null;
+  session_status: string;
   next_prompt: string;
   is_complete: boolean;
 }
@@ -99,6 +104,43 @@ export async function startSession(email: string, personaHint: string): Promise<
       throw error;
     }
     throw new Error('Failed to start session');
+  }
+}
+
+// CRITICAL: Export postAnswer function
+export async function postAnswer(
+  sessionId: string,
+  questionId: string,
+  answer: string
+): Promise<AnswerResponse> {
+  try {
+    console.log('📤 Posting answer for session:', sessionId, 'question:', questionId);
+    const response = await fetch(
+      `${API_BASE}/webhook/6a535534-b0e8-48b5-9bbe-c5b72c35b895/session/${sessionId}/answer`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          question_id: questionId,
+          answer 
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Post answer failed:', response.status, errorText);
+      throw new Error(`Failed to post answer: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Answer posted:', data);
+    return data;
+  } catch (error) {
+    console.error('💥 Post answer error:', error);
+    throw error;
   }
 }
 

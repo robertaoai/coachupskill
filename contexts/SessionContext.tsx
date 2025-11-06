@@ -1,8 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-
-const SESSION_STORAGE_KEY = 'ai_coach_session';
+import React, { createContext, useContext } from 'react';
+import { useSessionStorage } from '@/hooks/useSessionStorage';
 
 interface Message {
   id: string;
@@ -16,6 +15,7 @@ interface SessionData {
   firstPrompt: string;
   chatHistory: Message[];
   savedAt: string;
+  isComplete?: boolean;
 }
 
 interface SessionContextType {
@@ -23,6 +23,7 @@ interface SessionContextType {
   firstPrompt: string;
   chatHistory: Message[];
   isLoading: boolean;
+  isComplete: boolean;
   setSession: (sessionId: string, firstPrompt: string, chatHistory?: Message[]) => void;
   updateChatHistory: (messages: Message[]) => void;
   clearSession: () => void;
@@ -32,44 +33,25 @@ interface SessionContextType {
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [firstPrompt, setFirstPrompt] = useState<string>('');
-  const [chatHistory, setChatHistory] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { value: storedSession, update, clear, loading } = useSessionStorage('ai_coach_session');
 
-  // Load session from localStorage on mount
-  useEffect(() => {
-    console.log('🔄 SessionProvider - Initializing...');
-    
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(SESSION_STORAGE_KEY);
-      
-      if (stored) {
+  // Parse session data
+  const sessionData: SessionData | null = storedSession 
+    ? (() => {
         try {
-          const parsed: SessionData = JSON.parse(stored);
-          console.log('✅ SessionProvider - Loaded session:', parsed.sessionId);
-          
-          setSessionId(parsed.sessionId);
-          setFirstPrompt(parsed.firstPrompt);
-          setChatHistory(parsed.chatHistory || []);
-        } catch (e) {
-          console.error('❌ SessionProvider - Failed to parse session:', e);
-          localStorage.removeItem(SESSION_STORAGE_KEY);
+          return JSON.parse(storedSession);
+        } catch {
+          return null;
         }
-      } else {
-        console.log('ℹ️ SessionProvider - No existing session found');
-      }
-    }
-    
-    setIsLoading(false);
-  }, []);
+      })()
+    : null;
 
-  const setSession = useCallback((
+  const setSession = (
     sid: string,
     prompt: string,
     history: Message[] = []
   ) => {
-    console.log('💾 SessionProvider - Setting session:', sid);
+    console.log('💾 SessionContext - Setting session:', sid);
     
     const initialHistory = history.length > 0 ? history : [{
       id: 'initial',
@@ -78,65 +60,49 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       timestamp: new Date().toISOString()
     }];
     
-    setSessionId(sid);
-    setFirstPrompt(prompt);
-    setChatHistory(initialHistory);
+    const sessionData: SessionData = {
+      sessionId: sid,
+      firstPrompt: prompt,
+      chatHistory: initialHistory,
+      savedAt: new Date().toISOString()
+    };
     
-    if (typeof window !== 'undefined') {
-      const sessionData: SessionData = {
-        sessionId: sid,
-        firstPrompt: prompt,
-        chatHistory: initialHistory,
-        savedAt: new Date().toISOString()
-      };
-      
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
-      console.log('✅ SessionProvider - Session saved to localStorage');
-    }
-  }, []);
+    update(JSON.stringify(sessionData));
+    console.log('✅ SessionContext - Session updated');
+  };
 
-  const updateChatHistory = useCallback((messages: Message[]) => {
-    console.log('💬 SessionProvider - Updating chat history:', messages.length, 'messages');
+  const updateChatHistory = (messages: Message[]) => {
+    console.log('💬 SessionContext - Updating chat history:', messages.length, 'messages');
     
-    setChatHistory(messages);
-    
-    if (typeof window !== 'undefined' && sessionId) {
-      const sessionData: SessionData = {
-        sessionId,
-        firstPrompt,
+    if (sessionData) {
+      const updatedData: SessionData = {
+        ...sessionData,
         chatHistory: messages,
         savedAt: new Date().toISOString()
       };
       
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
-      console.log('✅ SessionProvider - Chat history updated in localStorage');
+      update(JSON.stringify(updatedData));
+      console.log('✅ SessionContext - Chat history updated');
     }
-  }, [sessionId, firstPrompt]);
+  };
 
-  const clearSession = useCallback(() => {
-    console.log('🗑️ SessionProvider - Clearing session...');
-    
-    setSessionId(null);
-    setFirstPrompt('');
-    setChatHistory([]);
-    
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(SESSION_STORAGE_KEY);
-      console.log('✅ SessionProvider - Session cleared from localStorage');
-    }
-  }, []);
+  const clearSession = () => {
+    console.log('🗑️ SessionContext - Clearing session');
+    clear();
+  };
 
-  const hasValidSession = useCallback(() => {
-    const isValid = !!sessionId && sessionId.length > 0;
-    console.log('🔍 SessionProvider - Session valid:', isValid);
+  const hasValidSession = () => {
+    const isValid = !!sessionData?.sessionId;
+    console.log('🔍 SessionContext - Session valid:', isValid);
     return isValid;
-  }, [sessionId]);
+  };
 
   const value: SessionContextType = {
-    sessionId,
-    firstPrompt,
-    chatHistory,
-    isLoading,
+    sessionId: sessionData?.sessionId || null,
+    firstPrompt: sessionData?.firstPrompt || '',
+    chatHistory: sessionData?.chatHistory || [],
+    isLoading: loading,
+    isComplete: sessionData?.isComplete || false,
     setSession,
     updateChatHistory,
     clearSession,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/contexts/SessionContext';
 import { toast } from 'sonner';
@@ -14,18 +14,41 @@ interface SessionValidatorProps {
 export function SessionValidator({ children, requireSession = true }: SessionValidatorProps) {
   const router = useRouter();
   const { hasValidSession, isLoading } = useSession();
+  const [isValidating, setIsValidating] = useState(true);
 
   useEffect(() => {
-    if (!isLoading && requireSession && !hasValidSession()) {
-      console.log('⚠️ SessionValidator - No valid session found');
-      toast.error('No active session found', {
-        description: 'Please start a new assessment'
-      });
-      router.push('/session-start-flow');
-    }
+    // CRITICAL: Add grace period for session initialization
+    const validateSession = async () => {
+      console.log('🔍 SessionValidator - Starting validation...');
+      
+      // Wait for SessionProvider to finish loading
+      if (isLoading) {
+        console.log('⏳ SessionValidator - Waiting for SessionProvider...');
+        return;
+      }
+      
+      // Add small delay to ensure any in-flight storage operations complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const isValid = hasValidSession();
+      console.log('🔍 SessionValidator - Session valid:', isValid);
+      
+      if (requireSession && !isValid) {
+        console.log('⚠️ SessionValidator - No valid session found, redirecting...');
+        toast.error('No active session found', {
+          description: 'Please start a new assessment'
+        });
+        router.push('/session-start-flow');
+      }
+      
+      setIsValidating(false);
+    };
+    
+    validateSession();
   }, [isLoading, requireSession, hasValidSession, router]);
 
-  if (isLoading) {
+  // Show loading state during validation
+  if (isLoading || isValidating) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#0a0a0a] via-[#1a0a2e] to-[#0a0a0a] flex items-center justify-center">
         <div className="text-center">
@@ -36,6 +59,7 @@ export function SessionValidator({ children, requireSession = true }: SessionVal
     );
   }
 
+  // Don't render children if session is required but invalid
   if (requireSession && !hasValidSession()) {
     return null;
   }
