@@ -1,107 +1,65 @@
 'use client';
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { ValidatedEntryField } from '@/components/ValidatedEntryField';
-import { toast } from 'sonner';
+import { useState, useEffect } from 'react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface UserEntryFormProps {
-  onSubmit: (email: string, personaHint: string) => Promise<void>;
-  disabled?: boolean;
+  onFormChange: (email: string, personaHint: string, isValid: boolean) => void;
 }
 
-export function UserEntryForm({ onSubmit, disabled = false }: UserEntryFormProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export function UserEntryForm({ onFormChange }: UserEntryFormProps) {
   const [email, setEmail] = useState('');
   const [personaHint, setPersonaHint] = useState('');
-  const [errors, setErrors] = useState<{ email?: string; personaHint?: string }>({});
+  const [emailError, setEmailError] = useState('');
 
-  const validateEmail = (value: string): string | undefined => {
-    if (!value) return 'Email is required';
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(value)) return 'Please enter a valid email address';
-    return undefined;
-  };
-
-  const validatePersonaHint = (value: string): string | undefined => {
-    if (!value) return 'Role is required';
-    if (value.length < 2) return 'Please enter at least 2 characters';
-    return undefined;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    // Validate email
+    const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const isPersonaValid = personaHint.trim().length > 0;
     
-    console.log('=== FORM SUBMIT ===');
-    console.log('Email:', email);
-    console.log('Persona hint:', personaHint);
-    
-    const emailError = validateEmail(email);
-    const personaError = validatePersonaHint(personaHint);
-    
-    if (emailError || personaError) {
-      console.log('Validation errors:', { emailError, personaError });
-      setErrors({
-        email: emailError,
-        personaHint: personaError,
-      });
-      return;
+    if (email && !isEmailValid) {
+      setEmailError('Please enter a valid email address');
+    } else {
+      setEmailError('');
     }
 
-    setErrors({});
-    setIsSubmitting(true);
-    
-    try {
-      console.log('Calling parent onSubmit...');
-      await onSubmit(email, personaHint);
-      console.log('Parent onSubmit completed successfully');
-    } catch (error) {
-      console.error('=== FORM SUBMISSION ERROR ===');
-      console.error('Error type:', error?.constructor?.name);
-      console.error('Error message:', error instanceof Error ? error.message : String(error));
-      console.error('Full error:', error);
-      
-      if (error && typeof error === 'object' && 'validation' in error) {
-        const validationError = error as { validation: string[] };
-        toast.error(validationError.validation.join(', '));
-      } else {
-        toast.error(error instanceof Error ? error.message : 'Failed to start session. Please try again.');
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    const isFormValid = isEmailValid && isPersonaValid;
+    onFormChange(email, personaHint, isFormValid);
+  }, [email, personaHint, onFormChange]);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <ValidatedEntryField
-        id="email"
-        label="Email Address"
-        placeholder="your.email@company.com"
-        type="email"
-        value={email}
-        onChange={setEmail}
-        error={errors.email}
-        disabled={isSubmitting || disabled}
-      />
-      
-      <ValidatedEntryField
-        id="personaHint"
-        label="Your Role"
-        placeholder="e.g., Marketing Manager, Software Developer"
-        value={personaHint}
-        onChange={setPersonaHint}
-        error={errors.personaHint}
-        disabled={isSubmitting || disabled}
-      />
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="email" className="text-gray-300">
+          Email Address
+        </Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="your.email@company.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="bg-black/60 border-[#00FFFF]/20 text-white placeholder:text-gray-500 focus:border-[#00FFFF]"
+        />
+        {emailError && (
+          <p className="text-xs text-red-400">{emailError}</p>
+        )}
+      </div>
 
-      <Button
-        type="submit"
-        disabled={isSubmitting || disabled}
-        className="w-full bg-[#00FFFF] hover:bg-[#00FFFF]/80 text-black font-['Orbitron'] font-bold uppercase tracking-wider neon-glow-cyan"
-      >
-        {isSubmitting ? 'Initializing...' : 'Start Assessment'}
-      </Button>
-    </form>
+      <div className="space-y-2">
+        <Label htmlFor="persona" className="text-gray-300">
+          Your Role
+        </Label>
+        <Input
+          id="persona"
+          type="text"
+          placeholder="e.g., Software Manager, Developer, CTO"
+          value={personaHint}
+          onChange={(e) => setPersonaHint(e.target.value)}
+          className="bg-black/60 border-[#00FFFF]/20 text-white placeholder:text-gray-500 focus:border-[#00FFFF]"
+        />
+      </div>
+    </div>
   );
 }

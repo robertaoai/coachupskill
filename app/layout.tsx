@@ -1,7 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Toaster } from 'sonner';
-import { Suspense } from 'react';
+import { SessionProvider } from '@/contexts/SessionContext';
 
 export const metadata: Metadata = {
   title: 'AI Skills Coach - Built with ChatAndBuild',
@@ -29,9 +29,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Suspense fallback={<div>Loading...</div>}>
+        <SessionProvider>
           {children}
-        </Suspense>
+        </SessionProvider>
         <Toaster position="top-right" theme="dark" />
       </body>
     </html>
